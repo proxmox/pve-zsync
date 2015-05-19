@@ -123,6 +123,8 @@ sub read_from_config {
 
     unlock($fh);
 
+    close($fh);
+
     my $cfg = encode_config($text);
 
     return $cfg;
@@ -365,7 +367,11 @@ sub init {
 	&$add_job($vm, $name);
     }
 
-    sync($param) if !$param->{skip};
+    eval {sync($param) if !$param->{skip};};
+    if(my $err = $@) {
+	destroy($param);
+	print $err;
+    }
 }
 
 sub destroy {
@@ -439,6 +445,7 @@ sub sync {
 	send_image($source, $dest, $method, $param->{verbose}, $param->{limit});
 
 	snapshot_destroy($source, $dest, $method, $source->{old_snap}) if ($source->{destroy} && $source->{old_snap});
+
 
 	if ($job_status && $job_status eq "exist") {
 	    my $conf_name = $source->{abs_path};
@@ -567,7 +574,7 @@ sub cron_del {
     close($fh);
     while ($text && $text =~ s/^(.*?)(\n|$)//) {
 	my $line = $1.$2;
-       	if ($line !~ m/.*$PROGNAME.*$source.*$name.*/){
+	if ($line !~ m/.*$PROGNAME.*$source.*$name.*/){
 	    $buffer .= $line;
 	}
     }
