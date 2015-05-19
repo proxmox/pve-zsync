@@ -389,13 +389,22 @@ sub destroy {
 
 	die "Sync Name does not exist!\n" unless $cfg->{$path}->{$name};
 
+	my $source .= $cfg->{$path}->{$name}->{source_ip} ? "$cfg->{$path}->{$name}->{source_ip}:"  : '';
+
+	$source .= $cfg->{$path}->{$name}->{source_pool};
+	$source .= $cfg->{$path}->{$name}->{source_path} ? $cfg->{$path}->{$name}->{source_path}  :'';
+
+	my $dest = $cfg->{$path}->{$name}->{dest_ip} ? $cfg->{$path}->{$name}->{dest_ip}  :"";
+	$dest .= $cfg->{$path}->{$name}->{dest_pool};
+	$dest .= $cfg->{$path}->{$name}->{dest_path} ? $cfg->{$path}->{$name}->{dest_path}  :'';
+
 	delete $cfg->{$path}->{$name};
 
 	delete $cfg->{$path} if keys%{$cfg->{$path}} == 0;
 
 	write_to_config($cfg);
 
-	cron_del($path, $name);
+	cron_del($source, $dest, $name);
     };
 
 
@@ -462,7 +471,7 @@ sub sync {
         die "VM $source->{vmid} doesn't exist\n" if !vm_exists($source);
 	my $disks = get_disks($source);
 
-        foreach my $disk (keys %{$disks}) {
+        foreach my $disk (sort keys %{$disks}) {
 	    $source->{abs_path} = $disks->{$disk}->{pool};
 	    $source->{abs_path} .= "\/$disks->{$disk}->{path}" if $disks->{$disk}->{path};
 
@@ -562,7 +571,7 @@ sub cron_add {
 }
 
 sub cron_del {
-    my ($source, $name) = @_;
+    my ($source, $dest, $name) = @_;
 
     open(my $fh, '<', "$CRONJOBS")
 	or die "Could not open file: $!\n";
@@ -574,7 +583,7 @@ sub cron_del {
     close($fh);
     while ($text && $text =~ s/^(.*?)(\n|$)//) {
 	my $line = $1.$2;
-	if ($line !~ m/.*$PROGNAME.*$source.*$name.*/){
+	if ($line !~ m/^.*root $PATH$PROGNAME sync -source  $source.*-dest  $dest.*-name $name.*$/){
 	    $buffer .= $line;
 	}
     }
