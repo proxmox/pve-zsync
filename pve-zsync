@@ -67,12 +67,11 @@ sub unlock {
 sub check_config {
     my ($source, $name, $cfg) = @_;
 
-    if ($source->{vmid}  && $cfg->{$source->{vmid}}->{$name}->{locked}){
-	return "active" if $cfg->{$source->{vmid}}->{$name}->{locked} eq 'yes';
-	return "exist" if $cfg->{$source->{vmid}}->{$name}->{locked} eq 'no';
-    } elsif ($cfg->{$source->{abs_path}}->{$name}->{locked}) {
-	return "active" if $cfg->{$source->{abs_path}}->{$name}->{locked} eq 'yes';
-	return "exist" if $cfg->{$source->{abs_path}}->{$name}->{locked} eq 'no';
+    my $id = $source->{vmid} ? $source->{vmid} : $source->{abs_path};
+    my $status = $cfg->{$id}->{$name}->{status};
+
+    if ($cfg->{$id}->{$name}->{status}){
+	return $status;
     }
 
     return undef;
@@ -169,9 +168,9 @@ sub encode_config {
 		$cfg->{$source}->{$sync_name}->{$par} = $value;
 		die "error in Config: SourceIP value doubled\n" if ($check & 2);
 		$check += 2;
-	    } elsif ($par eq 'locked') {
+	    } elsif ($par eq 'status') {
 		$cfg->{$source}->{$sync_name}->{$par} = $value;
-		die "error in Config: Locked value doubled\n" if ($check & 4);
+		die "error in Config: Status value doubled\n" if ($check & 4);
 		$check += 4;
 	    } elsif ($par eq 'method') {
 		$cfg -> {$source}->{$sync_name}->{$par} = $value;
@@ -262,13 +261,21 @@ sub list {
     my $cfg = read_from_config("$CONFIG_PATH$CONFIG");
 
     my $list = sprintf("%-25s%-15s%-7s%-20s%-10s%-5s\n" , "SOURCE", "NAME", "ACTIVE", "LAST SYNC", "INTERVAL", "TYPE");
-    
+
     foreach my $source (sort keys%{$cfg}){
 	foreach my $sync_name (sort keys%{$cfg->{$source}}){
 	    my $source_name = $source;
 	    $source_name = $cfg->{$source}->{$sync_name}->{source_ip}.":".$source if $cfg->{$source}->{$sync_name}->{source_ip};
 	    $list .= sprintf("%-25s%-15s", cut_to_width($source_name,25), cut_to_width($sync_name,15));
-	    $list .= sprintf("%-7s",$cfg->{$source}->{$sync_name}->{locked});
+	    
+	    my $active = "";
+	    if($cfg->{$source}->{$sync_name}->{status} eq 'syncing'){
+		$active = "yes";
+	    } else {
+		$active = "no";
+	    }
+ 
+	    $list .= sprintf("%-7s", $active);
 	    $list .= sprintf("%-20s",$cfg->{$source}->{$sync_name}->{lsync});
 	    $list .= sprintf("%-10s",$cfg->{$source}->{$sync_name}->{interval});
 	    $list .= sprintf("%-5s\n",$cfg->{$source}->{$sync_name}->{method});
@@ -309,7 +316,7 @@ sub init {
     $vm->{$name}->{dest_path} = $dest->{path} if $dest->{path};
 
     $param->{method} = "local" if !$dest->{ip} && !$source->{ip};
-    $vm->{$name}->{locked} = "no";
+    $vm->{$name}->{status} = "ok";
     $vm->{$name}->{interval} = $interval;
     $vm->{$name}->{method} = $param->{method} ? $param->{method} : "ssh";
     $vm->{$name}->{limit} = $param->{limit} if $param->{limit};
@@ -440,26 +447,38 @@ sub sync {
 	($source->{old_snap},$source->{last_snap}) = snapshot_get($source, $dest, $max_snap, $name);
 
 	my $job_status = check_config($source, $name, $cfg) if $cfg;
-	die "VM syncing at the moment!\n" if ($job_status && $job_status eq "active");
+	die "VM Status: $job_status syncing will not done!\n" if ($job_status && $job_status ne "ok");
 
-	if ($job_status && $job_status eq "exist") {
+	if ($job_status) {
 	    my $conf_name = $source->{abs_path};
 	    $conf_name = $source->{vmid} if $source->{vmid};
-	    $cfg->{$conf_name}->{$name}->{locked} = "yes";
+	    $cfg->{$conf_name}->{$name}->{status} = "syncing";
 	    write_to_config($cfg);
 	}
 
-	my $date = snapshot_add($source, $dest, $name);
+	my $date = undef;
 
-	send_image($source, $dest, $method, $param->{verbose}, $param->{limit});
+	eval{
+	    $date = snapshot_add($source, $dest, $name);
 
-	snapshot_destroy($source, $dest, $method, $source->{old_snap}) if ($source->{destroy} && $source->{old_snap});
+	    send_image($source, $dest, $method, $param->{verbose}, $param->{limit});
 
+	    snapshot_destroy($source, $dest, $method, $source->{old_snap}) if ($source->{destroy} && $source->{old_snap});
+	};
+	if(my $err = $@){
+	    if ($job_status){
+		my $conf_name = $source->{abs_path};
+		$conf_name = $source->{vmid} if $source->{vmid};
+		$cfg->{$conf_name}->{$name}->{status} = "error";
+		write_to_config($cfg);
+	    }
+	    die "$err\n";
+	}
 
-	if ($job_status && $job_status eq "exist") {
+	if ($job_status) {
 	    my $conf_name = $source->{abs_path};
 	    $conf_name = $source->{vmid} if $source->{vmid};
-	    $cfg->{$conf_name}->{$name}->{locked} = "no";
+	    $cfg->{$conf_name}->{$name}->{status} = "ok";
 	    $cfg->{$conf_name}->{$name}->{lsync} = $date;
 	    write_to_config($cfg);
 	}
@@ -809,21 +828,14 @@ sub status {
 	foreach my $sync_name (sort keys%{$cfg->{$source}}){
 	  my $status;
 
-		my $source_name = $source;
+	  my $source_name = $source;
 
-		$source_name = $cfg->{$source}->{$sync_name}->{source_ip}.":".$source if $cfg->{$source}->{$sync_name}->{source_ip};
+	  $source_name = $cfg->{$source}->{$sync_name}->{source_ip}.":".$source if $cfg->{$source}->{$sync_name}->{source_ip};
 
-		if ($cfg->{$source}->{$sync_name}->{locked} eq 'no'){
-		    $status = sprintf("%-10s","OK");
-		} elsif ($cfg->{$source}->{$sync_name}->{locked} eq 'yes' &&
-			 $cfg->{$source}->{$sync_name}->{failure}) {
-		    $status = sprintf("%-10s","sync error");
-	        } else {
-		    $status = sprintf("%-10s","syncing");
-		}
+	  $status = sprintf("%-10s",$cfg->{$source}->{$sync_name}->{status});
 
-		$status_list .= sprintf("%-25s%-15s", cut_to_width($source_name,25), cut_to_width($sync_name,15));
-		$status_list .= "$status\n";
+	  $status_list .= sprintf("%-25s%-15s", cut_to_width($source_name,25), cut_to_width($sync_name,15));
+	  $status_list .= "$status\n";
 	}
     }
 
