@@ -1,4 +1,4 @@
-Package: pve-zsync-perl
+Package: pve-zsync
 Version: @@VERSION@@-@@PKGRELEASE@@
 Section: perl
 Priority: optional

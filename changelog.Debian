@@ -1,6 +1,5 @@
-libpve-pvesync-perl (0.0-1) unstable; urgency=low
+pve-zsync (0.0-1) unstable; urgency=low
 
   * initial package
 
  -- Proxmox Support Team <support@proxmox.com>  So, 8 Mar 2015 18:34:19 +0100
-

@@ -326,7 +326,7 @@ sub init {
     my $check = check_pool_exsits($source->{abs_path}, $source->{ip}) if !$source->{vmid} && $source->{abs_path};
 
     die "Pool $source->{abs_path} does not exists\n" if undef($check);
-    
+
     my $add_job = sub {
 	my ($vm, $name) = @_;
 	my $source = "";
