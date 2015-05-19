@@ -389,20 +389,20 @@ sub destroy {
 
     my $source = parse_target($param->{source});
 
-    my $delete_cron = sub {
+    my $delete_configs = sub {
 	my ($path, $name, $cfg) = @_;
 
 	die "Source does not exist!\n" unless $cfg->{$path} ;
 
 	die "Sync Name does not exist!\n" unless $cfg->{$path}->{$name};
 
-	my $source .= $cfg->{$path}->{$name}->{source_ip} ? "$cfg->{$path}->{$name}->{source_ip}:"  : '';
+	my $source = $cfg->{$path}->{$name}->{source_ip} ? "$cfg->{$path}->{$name}->{source_ip}:"  : '';
 
-	$source .= $cfg->{$path}->{$name}->{source_pool};
+	$source .= $cfg->{$path}->{$name}->{source_pool} if $cfg->{$path}->{$name}->{source_pool};
 	$source .= $cfg->{$path}->{$name}->{source_path} ? $cfg->{$path}->{$name}->{source_path}  :'';
 
 	my $dest = $cfg->{$path}->{$name}->{dest_ip} ? $cfg->{$path}->{$name}->{dest_ip}  :"";
-	$dest .= $cfg->{$path}->{$name}->{dest_pool};
+	$dest .= $cfg->{$path}->{$name}->{dest_pool} if $cfg->{$path}->{$name}->{dest_pool};
 	$dest .= $cfg->{$path}->{$name}->{dest_path} ? $cfg->{$path}->{$name}->{dest_path}  :'';
 
 	delete $cfg->{$path}->{$name};
@@ -418,14 +418,14 @@ sub destroy {
     if ($source->{vmid}) {
 	my $path = $source->{vmid};
 
-        &$delete_cron($path, $name, $cfg)
+        &$delete_configs($path, $name, $cfg)
 
     } else {
 
 	my $path = $source->{pool};
 	$path .= $source->{path} if $source->{path};
 
-	&$delete_cron($path, $name, $cfg);
+	&$delete_configs($path, $name, $cfg);
     }
 }
 
@@ -471,6 +471,9 @@ sub sync {
 		$conf_name = $source->{vmid} if $source->{vmid};
 		$cfg->{$conf_name}->{$name}->{status} = "error";
 		write_to_config($cfg);
+		my $source_target = $source->{ip} ? $source->{ip}.":" : '';
+		$source_target .= $source->{vmid} ? $source->{vmid} : $source->{abs_path};
+		cron_del($source_target, $dest->{abs_path}, $name);
 	    }
 	    die "$err\n";
 	}
@@ -564,11 +567,18 @@ sub snapshot_add {
 sub cron_add {
     my ($vm) = @_;
 
+    my $text ="";
+
+    unless(-e $CRONJOBS){
+	$text .= 'SHELL=/bin/sh'."\n";
+	$text .= 'PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin'."\n ";
+    }
+    
     open(my $fh, '>>', "$CRONJOBS")
 	or die "Could not open file: $!\n";
 
     foreach my $name (keys%{$vm}){
-	my $text = "*/$vm->{$name}->{interval} * * * * root ";
+	$text .= "*/$vm->{$name}->{interval} * * * * root ";
 	$text .= "$PATH$PROGNAME sync";
 	$text .= " -source  ";
 	if ($vm->{$name}->{vmid}) {

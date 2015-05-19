@@ -45,9 +45,6 @@ deb ${DEB}:
 	rm -rf debian
 	mkdir debian
 	install -d debian/var/lib/pve-zsync
-	install -d debian/etc/cron.d/
-	echo "SHELL=/bin/sh" >> debian/etc/cron.d/pve-zsync
-	echo "PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin" >> debian/etc/cron.d/pve-zsync
 	make DESTDIR=${CURDIR}/debian install
 	install -d -m 0755 debian/DEBIAN
 	sed -e s/@@VERSION@@/${VERSION}/ -e s/@@PKGRELEASE@@/${PKGREL}/ -e s/@@ARCH@@/${ARCH}/ <control.in >debian/DEBIAN/control
