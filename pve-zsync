@@ -480,6 +480,9 @@ sub sync {
 
 	    &$sync_path($source, $name, $cfg, $max_snap, $dest, $method);
 	}
+	if ($method eq "ssh") {
+	    send_config($source, $dest,'ssh');
+	}
     } else {
 	&$sync_path($source, $name, $cfg, $max_snap, $dest, $method);
     }
@@ -762,12 +765,6 @@ sub send_image {
 	snapshot_destroy($source, undef, $method, $source->{new_snap});
 	die $erro;
     };
-
-    if ($source->{vmid}) {
-	if ($method eq "ssh") {
-	    send_config($source, $dest,'ssh');
-	}
-    }
 }
 
 
