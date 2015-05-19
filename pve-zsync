@@ -635,6 +635,7 @@ sub parse_disks {
 	my $line = $1;
 	my $disk = undef;
 	my $stor = undef;
+	my $is_disk = $line =~ m/^(virtio|ide|scsi|sata){1}\d+: /;
 	if($line =~ m/^(virtio\d+: )(.+:)([A-Za-z0-9\-]+),(.*)$/) {
 	    $disk = $3;
 	    $stor = $2;
@@ -649,7 +650,9 @@ sub parse_disks {
 	    $stor = $2;
 	}
 
-	if($disk && $disk ne "none" && $disk !~ m/cdrom/ ) {
+	die "disk is not on ZFS Storage\n" if $is_disk && !$disk && $line !~ m/cdrom/;
+
+	if($disk && $line !~ m/none/ && $line !~ m/cdrom/ ) {
 	    my $cmd = "";
 	    $cmd .= "ssh root\@$ip " if $ip;
 	    $cmd .= "pvesm path $stor$disk";
@@ -666,7 +669,6 @@ sub parse_disks {
 	    }
 	}
     }
-    die "disk is not on ZFS Storage\n" if $num == 0;
     return $disks;
 }
 
