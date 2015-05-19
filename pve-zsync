@@ -131,10 +131,10 @@ sub read_from_config {
 sub decode_config {
     my ($cfg) = @_;
     my $raw = '';
-    foreach my $source (keys%{$cfg}){
-	foreach my $sync_name (keys%{$cfg->{$source}}){
+    foreach my $source (sort keys%{$cfg}){
+	foreach my $sync_name (sort keys%{$cfg->{$source}}){
 	    $raw .= "$source: $sync_name\n";
-		foreach my $parameter (keys%{$cfg->{$source}->{$sync_name}}){
+		foreach my $parameter (sort keys%{$cfg->{$source}->{$sync_name}}){
 		    $raw .= "\t$parameter: $cfg->{$source}->{$sync_name}->{$parameter}\n";
 		}
 	}
@@ -260,9 +260,9 @@ sub list {
     my $cfg = read_from_config("$CONFIG_PATH$CONFIG");
 
     my $list = sprintf("%-25s%-15s%-7s%-20s%-10s%-5s\n" , "SOURCE", "NAME", "ACTIVE", "LAST SYNC", "INTERVAL", "TYPE");
-
-    foreach my $source (keys%{$cfg}){
-	foreach my $sync_name (keys%{$cfg->{$source}}){
+    
+    foreach my $source (sort keys%{$cfg}){
+	foreach my $sync_name (sort keys%{$cfg->{$source}}){
 	    my $source_name = $source;
 	    $source_name = $cfg->{$source}->{$sync_name}->{source_ip}.":".$source if $cfg->{$source}->{$sync_name}->{source_ip};
 	    $list .= sprintf("%-25s%-15s", cut_to_width($source_name,25), cut_to_width($sync_name,15));
@@ -790,8 +790,8 @@ sub status {
 
     my $status_list = sprintf("%-25s%-15s%-10s\n","SOURCE","NAME","STATUS");
 
-    foreach my $source (keys%{$cfg}){
-	foreach my $sync_name (keys%{$cfg->{$source}}){
+    foreach my $source (sort keys%{$cfg}){
+	foreach my $sync_name (sort keys%{$cfg->{$source}}){
 	  my $status;
 
 		my $source_name = $source;
