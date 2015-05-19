@@ -8,6 +8,7 @@ my $VMCONFIG = '/var/lib/'.$PROGNAME.'/';
 my $PATH = "/usr/sbin/";
 my $QEMU_CONF = '/etc/pve/local/qemu-server/';
 my $DEBUG = 0;
+my $LOCKFILE = $VMCONFIG.$PROGNAME.'lock';
 
 use strict;
 use warnings;
@@ -299,6 +300,8 @@ sub vm_exists {
 sub init {
     my ($param) = @_;
 
+    open(my $lock_fh, ">", $LOCKFILE) || die "cannot open Lock File: $LOCKFILE\n";
+    lock($lock_fh);
     my $cfg = read_from_config;
 
     my $vm = {};
@@ -369,7 +372,10 @@ sub init {
 
 	&$add_job($vm, $name);
     }
-
+    
+    lock($lock_fh);
+    close($lock_fh);
+    
     eval {sync($param) if !$param->{skip};};
     if(my $err = $@) {
 	destroy($param);
@@ -381,10 +387,13 @@ sub destroy {
     my ($param) = @_;
 
     modify_configs($param->{name}, $param->{source},1);
+
 }
 
 sub sync {
     my ($param) = @_;
+    open(my $lock_fh, ">", $LOCKFILE) || die "cannot open Lock File: $LOCKFILE\n";
+    lock($lock_fh);
 
     my $cfg = read_from_config("$CONFIG_PATH$CONFIG");
 
@@ -429,6 +438,8 @@ sub sync {
 		my $source_target = $source->{ip} ? $source->{ip}.":" : '';
 		$source_target .= $source->{vmid} ? $source->{vmid} : $source->{abs_path};
 		write_to_cron($cfg);
+		lock($lock_fh);
+		close($lock_fh);
 	    }
 	    die "$err\n";
 	}
@@ -464,6 +475,8 @@ sub sync {
     } else {
 	&$sync_path($source, $name, $cfg, $max_snap, $dest, $method);
     }
+    lock($lock_fh);
+    close($lock_fh);
 }
 
 sub snapshot_get{
@@ -801,6 +814,9 @@ sub modify_configs{
 
     $name =  $name ? $name : "default";
 
+    open(my $lock_fh, ">", $LOCKFILE) || die "cannot open Lock File: $LOCKFILE\n";
+    lock($lock_fh);
+
     my $cfg = read_from_config("$CONFIG_PATH$CONFIG");
 
     my $source = parse_target($sou);
@@ -859,6 +875,8 @@ sub modify_configs{
 
 	&$change_configs($path, $name, $cfg, $op);
     }
+    unlock($lock_fh);
+    close($lock_fh);
 }
 
 
