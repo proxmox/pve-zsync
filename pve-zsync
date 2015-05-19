@@ -120,8 +120,6 @@ sub read_from_config {
 
     my $text = <$fh>;
 
-    unlock($fh);
-
     close($fh);
 
     my $cfg = encode_config($text);
@@ -132,6 +130,7 @@ sub read_from_config {
 sub decode_config {
     my ($cfg) = @_;
     my $raw = '';
+
     foreach my $source (sort keys%{$cfg}){
 	foreach my $sync_name (sort keys%{$cfg->{$source}}){
 	    $raw .= "$source: $sync_name\n";
@@ -149,7 +148,6 @@ sub encode_config {
     my $source;
     my $check = 0;
     my $sync_name;
-
     while ($raw && $raw =~ s/^(.*?)(\n|$)//) {
 	my $line = $1;
 
@@ -267,14 +265,14 @@ sub list {
 	    my $source_name = $source;
 	    $source_name = $cfg->{$source}->{$sync_name}->{source_ip}.":".$source if $cfg->{$source}->{$sync_name}->{source_ip};
 	    $list .= sprintf("%-25s%-15s", cut_to_width($source_name,25), cut_to_width($sync_name,15));
-	    
+
 	    my $active = "";
 	    if($cfg->{$source}->{$sync_name}->{status} eq 'syncing'){
 		$active = "yes";
 	    } else {
 		$active = "no";
 	    }
- 
+
 	    $list .= sprintf("%-7s", $active);
 	    $list .= sprintf("%-20s",$cfg->{$source}->{$sync_name}->{lsync});
 	    $list .= sprintf("%-10s",$cfg->{$source}->{$sync_name}->{interval});
@@ -339,19 +337,17 @@ sub init {
     my $add_job = sub {
 	my ($vm, $name) = @_;
 	my $source = "";
-
 	if ($vm->{$name}->{vmid}) {
-	    $source = "$vm->{$name}->{source_ip}:" if $vm->{$name}->{source_ip};
 	    $source .= $vm->{$name}->{vmid};
 	} else {
-	    $source = $vm->{$name}->{source_pool};
+	    $source .= $vm->{$name}->{source_pool};
 	    $source .= $vm->{$name}->{source_path} if $vm->{$name}->{source_path};
 	}
 	die "Config already exists\n" if $cfg->{$source}->{$name};
 
-	cron_add($vm);
-
 	$cfg->{$source}->{$name} = $vm->{$name};
+
+	write_to_cron($cfg);
 
 	write_to_config($cfg);
     };
@@ -384,49 +380,7 @@ sub init {
 sub destroy {
     my ($param) = @_;
 
-    my $cfg = read_from_config("$CONFIG_PATH$CONFIG");
-    my $name =  $param->{name} ? $param->{name} : "default";
-
-    my $source = parse_target($param->{source});
-
-    my $delete_configs = sub {
-	my ($path, $name, $cfg) = @_;
-
-	die "Source does not exist!\n" unless $cfg->{$path} ;
-
-	die "Sync Name does not exist!\n" unless $cfg->{$path}->{$name};
-
-	my $source = $cfg->{$path}->{$name}->{source_ip} ? "$cfg->{$path}->{$name}->{source_ip}:"  : '';
-
-	$source .= $cfg->{$path}->{$name}->{source_pool} if $cfg->{$path}->{$name}->{source_pool};
-	$source .= $cfg->{$path}->{$name}->{source_path} ? $cfg->{$path}->{$name}->{source_path}  :'';
-
-	my $dest = $cfg->{$path}->{$name}->{dest_ip} ? $cfg->{$path}->{$name}->{dest_ip}  :"";
-	$dest .= $cfg->{$path}->{$name}->{dest_pool} if $cfg->{$path}->{$name}->{dest_pool};
-	$dest .= $cfg->{$path}->{$name}->{dest_path} ? $cfg->{$path}->{$name}->{dest_path}  :'';
-
-	delete $cfg->{$path}->{$name};
-
-	delete $cfg->{$path} if keys%{$cfg->{$path}} == 0;
-
-	write_to_config($cfg);
-
-	cron_del($source, $dest, $name);
-    };
-
-
-    if ($source->{vmid}) {
-	my $path = $source->{vmid};
-
-        &$delete_configs($path, $name, $cfg)
-
-    } else {
-
-	my $path = $source->{pool};
-	$path .= $source->{path} if $source->{path};
-
-	&$delete_configs($path, $name, $cfg);
-    }
+    modify_configs($param->{name}, $param->{source},1);
 }
 
 sub sync {
@@ -447,7 +401,7 @@ sub sync {
 	($source->{old_snap},$source->{last_snap}) = snapshot_get($source, $dest, $max_snap, $name);
 
 	my $job_status = check_config($source, $name, $cfg) if $cfg;
-	die "VM Status: $job_status syncing will not done!\n" if ($job_status && $job_status ne "ok");
+	die "VM Status: $job_status syncing will not done!\n" if ($job_status && !($job_status eq "ok" || $job_status eq "stoped"));
 
 	if ($job_status) {
 	    my $conf_name = $source->{abs_path};
@@ -471,9 +425,10 @@ sub sync {
 		$conf_name = $source->{vmid} if $source->{vmid};
 		$cfg->{$conf_name}->{$name}->{status} = "error";
 		write_to_config($cfg);
+
 		my $source_target = $source->{ip} ? $source->{ip}.":" : '';
 		$source_target .= $source->{vmid} ? $source->{vmid} : $source->{abs_path};
-		cron_del($source_target, $dest->{abs_path}, $name);
+		write_to_cron($cfg);
 	    }
 	    die "$err\n";
 	}
@@ -483,6 +438,7 @@ sub sync {
 	    $conf_name = $source->{vmid} if $source->{vmid};
 	    $cfg->{$conf_name}->{$name}->{status} = "ok";
 	    $cfg->{$conf_name}->{$name}->{lsync} = $date;
+
 	    write_to_config($cfg);
 	}
     };
@@ -564,64 +520,40 @@ sub snapshot_add {
     return $date;
 }
 
-sub cron_add {
-    my ($vm) = @_;
+sub write_to_cron {
+    my ($cfg) = @_;
 
-    my $text ="";
+    my $text = 'SHELL=/bin/sh'."\n";
+    $text .= 'PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin'."\n";
 
-    unless(-e $CRONJOBS){
-	$text .= 'SHELL=/bin/sh'."\n";
-	$text .= 'PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin'."\n ";
-    }
-    
-    open(my $fh, '>>', "$CRONJOBS")
+    open(my $fh, '>', "$CRONJOBS")
 	or die "Could not open file: $!\n";
 
-    foreach my $name (keys%{$vm}){
-	$text .= "*/$vm->{$name}->{interval} * * * * root ";
+    foreach my $source (sort keys%{$cfg}){
+	foreach my $sync_name (sort keys%{$cfg->{$source}}){
+	    next if $cfg->{$source}->{$sync_name}->{status} ne 'ok';
+	$text .= "*/$cfg->{$source}->{$sync_name}->{interval} * * * * root ";
 	$text .= "$PATH$PROGNAME sync";
 	$text .= " -source  ";
-	if ($vm->{$name}->{vmid}) {
-	    $text .= "$vm->{$name}->{source_ip}:" if $vm->{$name}->{source_ip};
-	    $text .= "$vm->{$name}->{vmid} ";
+	if ($cfg->{$source}->{$sync_name}->{vmid}) {
+	    $text .= "$cfg->{$source}->{$sync_name}->{source_ip}:" if $cfg->{$source}->{$sync_name}->{source_ip};
+	    $text .= "$cfg->{$source}->{$sync_name}->{vmid} ";
 	} else {
-	    $text .= "$vm->{$name}->{source_ip}:" if $vm->{$name}->{source_ip};
-	    $text .= "$vm->{$name}->{source_pool}";
-	    $text .= "$vm->{$name}->{source_path}" if $vm->{$name}->{source_path};
+	    $text .= "$cfg->{$source}->{$sync_name}->{source_ip}:" if $cfg->{$source}->{$sync_name}->{source_ip};
+	    $text .= "$cfg->{$source}->{$sync_name}->{source_pool}";
+	    $text .= "$cfg->{$source}->{$sync_name}->{source_path}" if $cfg->{$source}->{$sync_name}->{source_path};
 	}
 	$text .= " -dest  ";
-	$text .= "$vm->{$name}->{dest_ip}:" if $vm->{$name}->{dest_ip};
-	$text .= "$vm->{$name}->{dest_pool}";
-	$text .= "$vm->{$name}->{dest_path}" if $vm->{$name}->{dest_path};
-	$text .= " -name $name ";
-	$text .= " -limit $vm->{$name}->{limit}" if $vm->{$name}->{limit};
-	$text .= " -maxsnap $vm->{$name}->{maxsnap}" if $vm->{$name}->{maxsnap};
+	$text .= "$cfg->{$source}->{$sync_name}->{dest_ip}:" if $cfg->{$source}->{$sync_name}->{dest_ip};
+	$text .= "$cfg->{$source}->{$sync_name}->{dest_pool}";
+	$text .= "$cfg->{$source}->{$sync_name}->{dest_path}" if $cfg->{$source}->{$sync_name}->{dest_path};
+	$text .= " -name $sync_name ";
+	$text .= " -limit $cfg->{$source}->{$sync_name}->{limit}" if $cfg->{$source}->{$sync_name}->{limit};
+	$text .= " -maxsnap $cfg->{$source}->{$sync_name}->{maxsnap}" if $cfg->{$source}->{$sync_name}->{maxsnap};
 	$text .= "\n";
-	print($fh $text);
-    }
-    close($fh);
-}
-
-sub cron_del {
-    my ($source, $dest, $name) = @_;
-
-    open(my $fh, '<', "$CRONJOBS")
-	or die "Could not open file: $!\n";
-
-    $/ = undef;
-
-    my $text = <$fh>;
-    my $buffer = "";
-    close($fh);
-    while ($text && $text =~ s/^(.*?)(\n|$)//) {
-	my $line = $1.$2;
-	if ($line !~ m/^.*root $PATH$PROGNAME sync -source  $source.*-dest  $dest.*-name $name.*$/){
-	    $buffer .= $line;
 	}
     }
-    open($fh, '>', "$CRONJOBS")
-	or die "Could not open file: $!\n";
-    print($fh $buffer);
+    print($fh $text);
     close($fh);
 }
 
@@ -852,6 +784,83 @@ sub status {
     return $status_list;
 }
 
+sub enable{
+    my ($param) = @_;
+
+    modify_configs($param->{name}, $param->{source},4);
+}
+
+sub disable{
+    my ($param) = @_;
+
+    modify_configs($param->{name}, $param->{source},2);
+}
+
+sub modify_configs{
+    my ($name, $sou, $op) = @_;
+
+    $name =  $name ? $name : "default";
+
+    my $cfg = read_from_config("$CONFIG_PATH$CONFIG");
+
+    my $source = parse_target($sou);
+
+    my $change_configs = sub {
+	my ($path, $name, $cfg, $op) = @_;
+
+	die "Source does not exist!\n" unless $cfg->{$path} ;
+
+	die "Sync Name does not exist!\n" unless $cfg->{$path}->{$name};
+
+	my $source = $cfg->{$path}->{$name}->{source_ip} ? "$cfg->{$path}->{$name}->{source_ip}:"  : '';
+
+	$source .= $cfg->{$path}->{$name}->{source_pool} if $cfg->{$path}->{$name}->{source_pool};
+	$source .= $cfg->{$path}->{$name}->{source_path} ? $cfg->{$path}->{$name}->{source_path}  :'';
+
+	my $dest = $cfg->{$path}->{$name}->{dest_ip} ? $cfg->{$path}->{$name}->{dest_ip}  :"";
+	$dest .= $cfg->{$path}->{$name}->{dest_pool} if $cfg->{$path}->{$name}->{dest_pool};
+	$dest .= $cfg->{$path}->{$name}->{dest_path} ? $cfg->{$path}->{$name}->{dest_path}  :'';
+
+	if($op == 1){
+	    delete $cfg->{$path}->{$name};
+
+	    delete $cfg->{$path} if keys%{$cfg->{$path}} == 0;
+
+	    write_to_config($cfg);
+	}
+	if($op == 1 || $op == 2) {
+
+	    if ($op == 2) {
+
+		$cfg->{$path}->{$name}->{status} = "stoped";
+
+		write_to_config($cfg);
+	    }
+	    write_to_cron($cfg);
+	} elsif($op == 4) {
+	    my $job = {};
+
+	    $cfg->{$path}->{$name}->{status} = "ok";
+
+	    write_to_config($cfg);
+
+	    write_to_cron($cfg);
+	}
+    };
+
+
+    if ($source->{vmid}) {
+	my $path = $source->{vmid};
+
+        &$change_configs($path, $name, $cfg, $op)
+    } else {
+	my $path = $source->{pool};
+	$path .= $source->{path} if $source->{path};
+
+	&$change_configs($path, $name, $cfg, $op);
+    }
+}
+
 
 my $command = $ARGV[0];
 
@@ -860,9 +869,11 @@ my $commands = {'destroy' => 1,
 	       'sync' => 1,
 	       'list' => 1,
 	       'status' => 1,
-	       'help' => 1};
+	       'help' => 1,
+	       'enable' => 1,
+	       'disable' => 1};
 
-if (!$command ||  !$commands->{$command}) {
+if (!$command || !$commands->{$command}) {
     usage();
     die "\n";
 }
@@ -876,7 +887,7 @@ my $maxsnap = '';
 my $name = '';
 my $skip = '';
 
-my $help_sync = "zfs-zsync sync -dest <string> -source <string> [OPTIONS]\n
+my $help_sync = "$PROGNAME sync -dest <string> -source <string> [OPTIONS]\n
 \twill sync one time\n
 \t-dest\tstring\n
 \t\tthe destination target is like [IP:]<Pool>[/Path]\n
@@ -890,7 +901,7 @@ my $help_sync = "zfs-zsync sync -dest <string> -source <string> [OPTIONS]\n
 \t-source\tstring\n
 \t\tthe source can be an <VMID> or [IP:]<ZFSPool>[/Path]\n";
 
-my $help_create = "zfs-zsync create -dest <string> -source <string> [OPTIONS]/n
+my $help_create = "$PROGNAME create -dest <string> -source <string> [OPTIONS]/n
 \tCreate a sync Job\n
 \t-dest\tstringn\n
 \t\tthe destination target is like [IP]:<Pool>[/Path]\n
@@ -898,7 +909,7 @@ my $help_create = "zfs-zsync create -dest <string> -source <string> [OPTIONS]/n
 \t\tthe interval in min in witch the zfs will sync,
 \t\tdefault is 15 min\n
 \t-limit\tinteger\n
-\t\tmax sync speed, default unlimited\n
+\t\tmax sync speed in kBytes/s, default unlimited\n
 \t-maxsnap\tstring\n
 \t\thow much snapshots will be kept before get erased, default 1\n
 \t-name\tstring\n
@@ -908,25 +919,39 @@ my $help_create = "zfs-zsync create -dest <string> -source <string> [OPTIONS]/n
 \t-source\tstring\n
 \t\tthe source can be an <VMID> or [IP:]<ZFSPool>[/Path]\n";
 
-my $help_destroy = "zfs-zsync destroy -source <string> [OPTIONS]\n
+my $help_destroy = "$PROGNAME destroy -source <string> [OPTIONS]\n
 \tremove a sync Job from the scheduler\n
 \t-name\tstring\n
 \t\tname of the sync job, if not set it is default\n
 \t-source\tstring\n
 \t\tthe source can be an  <VMID> or [IP:]<ZFSPool>[/Path]\n";
 
-my $help_help = "zfs-zsync help <cmd> [OPTIONS]\n
+my $help_help = "$PROGNAME help <cmd> [OPTIONS]\n
 \tGet help about specified command.\n
 \t<cmd>\tstring\n
 \t\tCommand name\n
 \t-verbose\tboolean\n
 \t\tVerbose output format.\n";
 
-my $help_list = "zfs-zsync list\n
+my $help_list = "$PROGNAME list\n
 \tGet a List of all scheduled Sync Jobs\n";
 
-my $help_status = "zfs-zsync status\n
+my $help_status = "$PROGNAME status\n
 \tGet the status of all scheduled Sync Jobs\n";
+
+my $help_enable = "$PROGNAME enable -source <string> [OPTIONS]\n
+\tenable a syncjob and reset error\n
+\t-name\tstring\n
+\t\tname of the sync job, if not set it is default\n
+\t-source\tstring\n
+\t\tthe source can be an  <VMID> or [IP:]<ZFSPool>[/Path]\n";
+
+my $help_disable = "$PROGNAME disable -source <string> [OPTIONS]\n
+\tpause a syncjob\n
+\t-name\tstring\n
+\t\tname of the sync job, if not set it is default\n
+\t-source\tstring\n
+\t\tthe source can be an  <VMID> or [IP:]<ZFSPool>[/Path]\n";
 
 sub help{
     my ($command) = @_;
@@ -955,6 +980,14 @@ sub help{
 	case 'status'
 	{
 	    die "$help_status\n";
+	}
+	case 'enable'
+	{
+	     die "$help_enable\n";
+	}
+	case 'disable'
+	{
+	    die "$help_enable\n";
 	}
     }
 
@@ -1024,6 +1057,18 @@ switch($command){
 	    usage(1);
 	}
     }
+    case "enable"
+    {
+	die "$help_enable\n" if !$source;
+	check_target($source);
+	enable($param);
+    }
+    case "disable"
+    {
+	die "$help_disable\n" if !$source;
+	check_target($source);
+	disable($param);
+    }
 }
 
 sub usage{
@@ -1031,12 +1076,14 @@ sub usage{
 
     print("ERROR:\tno command specified\n") if !$help;
     print("USAGE:\t$PROGNAME <COMMAND> [ARGS] [OPTIONS]\n");
-    print("\tpve-zsync help [<cmd>] [OPTIONS]\n\n");
-    print("\tpve-zsync create -dest <string> -source <string> [OPTIONS]\n");
-    print("\tpve-zsync destroy -source <string> [OPTIONS]\n");
-    print("\tpve-zsync list\n");
-    print("\tpve-zsync status\n");
-    print("\tpve-zsync sync -dest <string> -source <string> [OPTIONS]\n");
+    print("\t$PROGNAME help [<cmd>] [OPTIONS]\n\n");
+    print("\t$PROGNAME create -dest <string> -source <string> [OPTIONS]\n");
+    print("\t$PROGNAME destroy -source <string> [OPTIONS]\n");
+    print("\t$PROGNAME disable -source <string> [OPTIONS]\n");
+    print("\t$PROGNAME enable -source <string> [OPTIONS]\n");
+    print("\t$PROGNAME list\n");
+    print("\t$PROGNAME status\n");
+    print("\t$PROGNAME sync -dest <string> -source <string> [OPTIONS]\n");
 }
 
 sub check_target{
@@ -1087,7 +1134,7 @@ zfs-zsync create -dest <string> -source <string> [OPTIONS]
 
           -limit     integer
 
-		max sync speed, default unlimited
+		max sync speed in kBytes/s, default unlimited
 
           -maxsnap   string
 
@@ -1117,6 +1164,29 @@ zfs-zsync destroy -source <string> [OPTIONS]
 
                 the source can be an  <VMID> or [IP:]<ZFSPool>[/Path]
 
+zfs-zsync disable -source <string> [OPTIONS]
+
+          pause a sync job
+
+          -name      string
+
+		name of the sync job, if not set it is default
+
+          -source    string
+
+                the source can be an  <VMID> or [IP:]<ZFSPool>[/Path]
+
+zfs-zsync enable -source <string> [OPTIONS]
+
+          enable a syncjob and reset error
+
+          -name      string
+
+		name of the sync job, if not set it is default
+
+          -source    string
+
+                the source can be an  <VMID> or [IP:]<ZFSPool>[/Path]
 zfs-zsync list
 
 	Get a List of all scheduled Sync Jobs
