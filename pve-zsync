@@ -1,21 +1,21 @@
 #!/usr/bin/perl
 
-my $PROGNAME = "pve-zsync";
-my $CONFIG_PATH = '/var/lib/'.$PROGNAME.'/';
-my $CONFIG = "$PROGNAME.cfg";
-my $CRONJOBS = '/etc/cron.d/'.$PROGNAME;
-my $VMCONFIG = '/var/lib/'.$PROGNAME.'/';
-my $PATH = "/usr/sbin/";
-my $QEMU_CONF = '/etc/pve/local/qemu-server/';
-my $DEBUG = 0;
-my $LOCKFILE = $VMCONFIG.$PROGNAME.'lock';
-
 use strict;
 use warnings;
 use Data::Dumper qw(Dumper);
 use Fcntl qw(:flock SEEK_END);
 use Getopt::Long;
 use Switch;
+
+my $PROGNAME = "pve-zsync";
+my $CONFIG_PATH = "/var/lib/$PROGNAME/";
+my $CONFIG = "$CONFIG_PATH$PROGNAME.cfg";
+my $CRONJOBS = "/etc/cron.d/$PROGNAME";
+my $PATH = "/usr/sbin/";
+my $QEMU_CONF = "/etc/pve/local/qemu-server/";
+my $DEBUG = 0;
+my $LOCKFILE = "$CONFIG_PATH$PROGNAME.lock";
+my $PROG_PATH = "$PATH${PROGNAME}";
 
 check_bin ('cstream');
 check_bin ('zfs');
@@ -35,11 +35,11 @@ sub check_bin {
     warn "unable to find command '$bin'\n";
 }
 
-sub cut_to_width {
-    my ($text, $max) = @_;
+sub cut_target_width {
+    my ($target, $max) = @_;
 
-    return  $text if (length($text) <= $max);
-    my @spl = split('/', $text);
+    return  $target if (length($target) <= $max);
+    my @spl = split('/', $target);
 
     my $count = length($spl[@spl-1]);
     return "..\/".substr($spl[@spl-1],($count-$max)+3 ,$count) if $count > $max;
@@ -47,22 +47,22 @@ sub cut_to_width {
     $count +=  length($spl[0]) if @spl > 1;
     return substr($spl[0], 0, $max-4-length($spl[@spl-1]))."\/..\/".$spl[@spl-1] if $count > $max;
 
-    my $rest = 1 ;
+    my $rest = 1;
     $rest = $max-$count if ($max-$count > 0);
 
-    return "$spl[0]".substr($text, length($spl[0]), $rest)."..\/".$spl[@spl-1];
+    return "$spl[0]".substr($target, length($spl[0]), $rest)."..\/".$spl[@spl-1];
 }
 
 sub lock {
     my ($fh) = @_;
-    flock($fh, LOCK_EX) or die "Cannot lock config - $!\n";
+    flock($fh, LOCK_EX) || die "Cannot lock config - $!\n";
 
-    seek($fh, 0, SEEK_END) or die "Cannot seek - $!\n";
+    seek($fh, 0, SEEK_END) || die "Cannot seek - $!\n";
 }
 
 sub unlock {
     my ($fh) = @_;
-    flock($fh, LOCK_UN) or die "Cannot unlock config- $!\n";
+    flock($fh, LOCK_UN) || die "Cannot unlock config- $!\n";
 }
 
 sub check_config {
@@ -71,7 +71,7 @@ sub check_config {
     my $id = $source->{vmid} ? $source->{vmid} : $source->{abs_path};
     my $status = $cfg->{$id}->{$name}->{status};
 
-    if ($cfg->{$id}->{$name}->{status}){
+    if ($cfg->{$id}->{$name}->{status}) {
 	return $status;
     }
 
@@ -89,33 +89,31 @@ sub check_pool_exsits {
 	run_cmd($cmd);
     };
 
-    if($@){
+    if($@) {
 	return 1;
     }
     return undef;
 }
 
-sub write_to_config {
+sub write_config {
     my ($cfg) = @_;
 
-    open(my $fh, ">", "$CONFIG_PATH$CONFIG")
-	or die "cannot open >$CONFIG_PATH$CONFIG: $!\n";
+    open(my $fh, ">", "$CONFIG") || die "cannot open > $CONFIG: $!\n";
 
-    my $text = decode_config($cfg);
+    my $text = encode_config($cfg);
 
     print($fh $text);
 
     close($fh);
 }
 
-sub read_from_config {
+sub read_config {
 
-    unless(-e "$CONFIG_PATH$CONFIG") {
+    if(!-e "$CONFIG") {
 	return undef;
     }
 
-    open(my $fh, "<", "$CONFIG_PATH$CONFIG")
-	or die "cannot open > $CONFIG_PATH$CONFIG: $!\n";
+    open(my $fh, "<", "$CONFIG") || die "cannot open > $CONFIG: $!\n";
 
     $/ = undef;
 
@@ -123,27 +121,28 @@ sub read_from_config {
 
     close($fh);
 
-    my $cfg = encode_config($text);
+    my $cfg = decode_config($text);
 
     return $cfg;
 }
 
-sub decode_config {
+sub encode_config {
     my ($cfg) = @_;
     my $raw = '';
 
-    foreach my $source (sort keys%{$cfg}){
-	foreach my $sync_name (sort keys%{$cfg->{$source}}){
+    foreach my $source (sort keys%{$cfg}) {
+	foreach my $sync_name (sort keys%{$cfg->{$source}}) {
 	    $raw .= "$source: $sync_name\n";
-		foreach my $parameter (sort keys%{$cfg->{$source}->{$sync_name}}){
-		    $raw .= "\t$parameter: $cfg->{$source}->{$sync_name}->{$parameter}\n";
-		}
+	    foreach my $parameter (sort keys%{$cfg->{$source}->{$sync_name}}) {
+		$raw .= "\t$parameter: $cfg->{$source}->{$sync_name}->{$parameter}\n";
+	    }
 	}
     }
+
     return $raw;
 }
 
-sub encode_config {
+sub decode_config {
     my ($raw) = @_;
     my $cfg = {};
     my $source;
@@ -155,7 +154,7 @@ sub encode_config {
 	next if $line =~ m/^\#/;
 	next if $line =~ m/^\s*$/;
 
-	if ($line =~ m/^(\t| )(\w+): (.+)/){
+	if ($line =~ m/^(\t| )(\w+): (.+)/) {
 	    my $par = $2;
 	    my $value = $3;
 
@@ -214,9 +213,9 @@ sub encode_config {
 	    } else {
 		die "error in Config\n";
 	    }
-	} elsif ($line =~ m/^((\d+.\d+.\d+.\d+):)?([\w\-\_\/]+): (.+){0,1}/){
+	} elsif ($line =~ m/^((\d+.\d+.\d+.\d+):)?([\w\-\_\/]+): (.+){0,1}/) {
 	    $source = $3;
-	    $sync_name = $4 ? $4 : 'default' ;
+	    $sync_name = $4 ? $4 : 'default';
 	    $cfg->{$source}->{$sync_name} = undef;
 	    $cfg->{$source}->{$sync_name}->{source_ip} = $2 if $2;
 	    $check = 0;
@@ -228,17 +227,18 @@ sub encode_config {
 sub parse_target {
     my ($text) = @_;
 
+    my $errstr = "No valid input:";
     if ($text =~ m/^((\d+.\d+.\d+.\d+):)?((\w+)\/?)([\w\/\-\_]*)?$/) {
 
-	die "Input not valid\n" if !$3;
+	die "$errstr $text\n" if !$3;
 	my $tmp = $3;
 	my $target = {};
 
 	if ($2) {
-	    $target->{ip} = $2 ;
+	    $target->{ip} = $2;
 	}
 
-	if ($tmp =~ m/^(\d\d\d+)$/){
+	if ($tmp =~ m/^(\d\d\d+)$/) {
 	    $target->{vmid} = $tmp;
 	} else {
 	    $target->{pool} = $4;
@@ -252,23 +252,23 @@ sub parse_target {
 
 	return $target;
     }
-    die "Input not valid\n";
+    die "$errstr $text\n";
 }
 
 sub list {
 
-    my $cfg = read_from_config("$CONFIG_PATH$CONFIG");
+    my $cfg = read_config();
 
     my $list = sprintf("%-25s%-15s%-7s%-20s%-10s%-5s\n" , "SOURCE", "NAME", "ACTIVE", "LAST SYNC", "INTERVAL", "TYPE");
 
-    foreach my $source (sort keys%{$cfg}){
-	foreach my $sync_name (sort keys%{$cfg->{$source}}){
+    foreach my $source (sort keys%{$cfg}) {
+	foreach my $sync_name (sort keys%{$cfg->{$source}}) {
 	    my $source_name = $source;
-	    $source_name = $cfg->{$source}->{$sync_name}->{source_ip}.":".$source if $cfg->{$source}->{$sync_name}->{source_ip};
-	    $list .= sprintf("%-25s%-15s", cut_to_width($source_name,25), cut_to_width($sync_name,15));
+	    $source_name = $cfg->{$source}->{$sync_name}->{source_ip}.":$source" if $cfg->{$source}->{$sync_name}->{source_ip};
+	    $list .= sprintf("%-25s%-15s", cut_target_width($source_name,25), cut_target_width($sync_name,15));
 
 	    my $active = "";
-	    if($cfg->{$source}->{$sync_name}->{status} eq 'syncing'){
+	    if($cfg->{$source}->{$sync_name}->{status} eq 'syncing') {
 		$active = "yes";
 	    } else {
 		$active = "no";
@@ -302,7 +302,7 @@ sub init {
 
     open(my $lock_fh, ">", $LOCKFILE) || die "cannot open Lock File: $LOCKFILE\n";
     lock($lock_fh);
-    my $cfg = read_from_config;
+    my $cfg = read_config();
 
     my $vm = {};
 
@@ -323,11 +323,11 @@ sub init {
     $vm->{$name}->{limit} = $param->{limit} if $param->{limit};
     $vm->{$name}->{maxsnap} = $param->{maxsnap} if $param->{maxsnap};
 
-    if ( my $ip =  $vm->{$name}->{dest_ip} ) {
+    if (my $ip =  $vm->{$name}->{dest_ip}) {
 	run_cmd("ssh-copy-id -i /root/.ssh/id_rsa.pub root\@$ip");
     }
 
-    if ( my $ip =  $source->{ip} ) {
+    if (my $ip =  $source->{ip}) {
 	run_cmd("ssh-copy-id -i /root/.ssh/id_rsa.pub root\@$ip");
     }
 
@@ -349,10 +349,6 @@ sub init {
 	die "Config already exists\n" if $cfg->{$source}->{$name};
 
 	$cfg->{$source}->{$name} = $vm->{$name};
-
-	write_to_cron($cfg);
-
-	write_to_config($cfg);
     };
 
     if ($source->{vmid}) {
@@ -372,21 +368,27 @@ sub init {
 
 	&$add_job($vm, $name);
     }
-    
-    lock($lock_fh);
+
+    write_cron($cfg);
+
+    write_config($cfg);
+
+    unlock($lock_fh);
     close($lock_fh);
-    
-    eval {sync($param) if !$param->{skip};};
+
+    eval {
+	sync($param) if !$param->{skip};
+    };
     if(my $err = $@) {
-	destroy($param);
+	destroy_job($param);
 	print $err;
     }
 }
 
-sub destroy {
+sub destroy_job {
     my ($param) = @_;
 
-    modify_configs($param->{name}, $param->{source},1);
+    modify_configs($param->{name}, $param->{source}, 1);
 
 }
 
@@ -395,7 +397,7 @@ sub sync {
     open(my $lock_fh, ">", $LOCKFILE) || die "cannot open Lock File: $LOCKFILE\n";
     lock($lock_fh);
 
-    my $cfg = read_from_config("$CONFIG_PATH$CONFIG");
+    my $cfg = read_config();
 
     my $name =  $param->{name} ? $param->{name} : "default";
     my $max_snap = $param->{maxsnap} ? $param->{maxsnap} : 1;
@@ -416,7 +418,7 @@ sub sync {
 	    my $conf_name = $source->{abs_path};
 	    $conf_name = $source->{vmid} if $source->{vmid};
 	    $cfg->{$conf_name}->{$name}->{status} = "syncing";
-	    write_to_config($cfg);
+	    write_config($cfg);
 	}
 
 	my $date = undef;
@@ -428,17 +430,18 @@ sub sync {
 
 	    snapshot_destroy($source, $dest, $method, $source->{old_snap}) if ($source->{destroy} && $source->{old_snap});
 	};
-	if(my $err = $@){
-	    if ($job_status){
+	if(my $err = $@) {
+	    if ($job_status) {
 		my $conf_name = $source->{abs_path};
 		$conf_name = $source->{vmid} if $source->{vmid};
 		$cfg->{$conf_name}->{$name}->{status} = "error";
-		write_to_config($cfg);
+		write_config($cfg);
 
 		my $source_target = $source->{ip} ? $source->{ip}.":" : '';
 		$source_target .= $source->{vmid} ? $source->{vmid} : $source->{abs_path};
-		write_to_cron($cfg);
-		lock($lock_fh);
+
+		write_cron($cfg);
+		unlock($lock_fh);
 		close($lock_fh);
 	    }
 	    die "$err\n";
@@ -450,7 +453,7 @@ sub sync {
 	    $cfg->{$conf_name}->{$name}->{status} = "ok";
 	    $cfg->{$conf_name}->{$name}->{lsync} = $date;
 
-	    write_to_config($cfg);
+	    write_config($cfg);
 	}
     };
 
@@ -475,7 +478,7 @@ sub sync {
     } else {
 	&$sync_path($source, $name, $cfg, $max_snap, $dest, $method);
     }
-    lock($lock_fh);
+    unlock($lock_fh);
     close($lock_fh);
 }
 
@@ -517,36 +520,35 @@ sub snapshot_add {
 
     $source->{new_snap} = $snap_name;
 
-    my $path = $source->{abs_path}."\@".$snap_name;
+    my $path = "$source->{abs_path}\@$snap_name";
 
     my $cmd = "zfs snapshot $path";
-    $cmd = "ssh root\@$source->{ip}  ".$cmd if $source->{ip};
+    $cmd = "ssh root\@$source->{ip}  $cmd" if $source->{ip};
 
     eval{
 	run_cmd($cmd);
     };
 
-    if (my $err = $@){
+    if (my $err = $@) {
 	snapshot_destroy($source, $dest, 'ssh', $snap_name);
 	die "$err\n";
     }
     return $date;
 }
 
-sub write_to_cron {
+sub write_cron {
     my ($cfg) = @_;
 
-    my $text = 'SHELL=/bin/sh'."\n";
-    $text .= 'PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin'."\n";
+    my $text = "SHELL=/bin/sh\n";
+    $text .= "PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin\n";
 
-    open(my $fh, '>', "$CRONJOBS")
-	or die "Could not open file: $!\n";
+    open(my $fh, '>', "$CRONJOBS") || die "Could not open file: $!\n";
 
-    foreach my $source (sort keys%{$cfg}){
-	foreach my $sync_name (sort keys%{$cfg->{$source}}){
+    foreach my $source (sort keys%{$cfg}) {
+	foreach my $sync_name (sort keys%{$cfg->{$source}}) {
 	    next if $cfg->{$source}->{$sync_name}->{status} ne 'ok';
 	$text .= "*/$cfg->{$source}->{$sync_name}->{interval} * * * * root ";
-	$text .= "$PATH$PROGNAME sync";
+	$text .= "$PROG_PATH sync";
 	$text .= " -source  ";
 	if ($cfg->{$source}->{$sync_name}->{vmid}) {
 	    $text .= "$cfg->{$source}->{$sync_name}->{source_ip}:" if $cfg->{$source}->{$sync_name}->{source_ip};
@@ -566,7 +568,7 @@ sub write_to_cron {
 	$text .= "\n";
 	}
     }
-    print($fh $text);
+    die "Can't write to cron\n" if (!print($fh $text));
     close($fh);
 }
 
@@ -604,10 +606,6 @@ sub parse_disks {
     my $disks;
 
     my $num = 0;
-    my $cmd = "";
-    $cmd .= "ssh root\@$ip " if $ip;
-    $cmd .= "pvesm zfsscan";
-    my $zfs_pools = run_cmd($cmd);
     while ($text && $text =~ s/^(.*?)(\n|$)//) {
 	my $line = $1;
 	my $disk = undef;
@@ -635,7 +633,7 @@ sub parse_disks {
 	    $cmd .= "pvesm path $stor$disk";
 	    my $path = run_cmd($cmd);
 
-	    if ($path =~ m/^\/dev\/zvol\/(\w+).*(\/$disk)$/){
+	    if ($path =~ m/^\/dev\/zvol\/(\w+).*(\/$disk)$/) {
 
 		$disks->{$num}->{pool} = $1;
 		$disks->{$num}->{path} = $disk;
@@ -665,7 +663,7 @@ sub snapshot_destroy {
     if (my $erro = $@) {
 	warn "WARN: $erro";
     }
-    if ($dest){
+    if ($dest) {
 	my $ssh =  $dest->{ip} ? "ssh root\@$dest->{ip}" : "";
 
 	my $path = "";
@@ -747,49 +745,49 @@ sub send_config{
 
     if ($method eq 'ssh'){
 	if ($dest->{ip} && $source->{ip}) {
-	    run_cmd("ssh root\@$dest->{ip} mkdir $VMCONFIG -p");
-	    run_cmd("scp root\@$source->{ip}:$QEMU_CONF$source->{vmid}.conf root\@$dest->{ip}:$VMCONFIG$source->{vmid}.conf.$source->{new_snap}");
+	    run_cmd("ssh root\@$dest->{ip} mkdir $CONFIG_PATH -p");
+	    run_cmd("scp root\@$source->{ip}:$QEMU_CONF$source->{vmid}.conf root\@$dest->{ip}:$CONFIG_PATH$source->{vmid}.conf.$source->{new_snap}");
 	} elsif ($dest->{ip}) {
-	    run_cmd("ssh root\@$dest->{ip} mkdir $VMCONFIG -p");
-	    run_cmd("scp $QEMU_CONF$source->{vmid}.conf root\@$dest->{ip}:$VMCONFIG$source->{vmid}.conf.$source->{new_snap}");
+	    run_cmd("ssh root\@$dest->{ip} mkdir $CONFIG_PATH -p");
+	    run_cmd("scp $QEMU_CONF$source->{vmid}.conf root\@$dest->{ip}:$CONFIG_PATH$source->{vmid}.conf.$source->{new_snap}");
 	} elsif ($source->{ip}) {
-	    run_cmd("mkdir $VMCONFIG -p");
-	    run_cmd("scp root\@$source->{ip}:$QEMU_CONF$source->{vmid}.conf $VMCONFIG$source->{vmid}.conf.$source->{new_snap}");
+	    run_cmd("mkdir $CONFIG_PATH -p");
+	    run_cmd("scp root\@$source->{ip}:$QEMU_CONF$source->{vmid}.conf $CONFIG_PATH$source->{vmid}.conf.$source->{new_snap}");
 	}
 
 	if ($source->{destroy}){
 	    if($dest->{ip}){
-		run_cmd("ssh root\@$dest->{ip} rm -f $VMCONFIG$source->{vmid}.conf.$source->{old_snap}");
+		run_cmd("ssh root\@$dest->{ip} rm -f $CONFIG_PATH$source->{vmid}.conf.$source->{old_snap}");
 	    } else {
-		run_cmd("rm -f $VMCONFIG$source->{vmid}.conf.$source->{old_snap}");
+		run_cmd("rm -f $CONFIG_PATH$source->{vmid}.conf.$source->{old_snap}");
 	    }
 	}
     }
 }
 
 sub get_date {
-    my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime(time);
-    my $datestamp = sprintf ( "%04d-%02d-%02d_%02d:%02d:%02d",$year+1900,$mon+1,$mday,$hour,$min,$sec);
+    my ($sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst) = localtime(time);
+    my $datestamp = sprintf ("%04d-%02d-%02d_%02d:%02d:%02d", $year+1900, $mon+1, $mday, $hour, $min, $sec);
 
     return $datestamp;
 }
 
 sub status {
-    my $cfg = read_from_config("$CONFIG_PATH$CONFIG");
+    my $cfg = read_config();
 
-    my $status_list = sprintf("%-25s%-15s%-10s\n","SOURCE","NAME","STATUS");
+    my $status_list = sprintf("%-25s%-15s%-10s\n", "SOURCE", "NAME", "STATUS");
 
-    foreach my $source (sort keys%{$cfg}){
-	foreach my $sync_name (sort keys%{$cfg->{$source}}){
+    foreach my $source (sort keys%{$cfg}) {
+	foreach my $sync_name (sort keys%{$cfg->{$source}}) {
 	  my $status;
 
 	  my $source_name = $source;
 
-	  $source_name = $cfg->{$source}->{$sync_name}->{source_ip}.":".$source if $cfg->{$source}->{$sync_name}->{source_ip};
+	  $source_name = $cfg->{$source}->{$sync_name}->{source_ip}.":$source" if $cfg->{$source}->{$sync_name}->{source_ip};
 
-	  $status = sprintf("%-10s",$cfg->{$source}->{$sync_name}->{status});
+	  $status = sprintf("%-10s", $cfg->{$source}->{$sync_name}->{status});
 
-	  $status_list .= sprintf("%-25s%-15s", cut_to_width($source_name,25), cut_to_width($sync_name,15));
+	  $status_list .= sprintf("%-25s%-15s", cut_target_width($source_name,25), cut_target_width($sync_name,15));
 	  $status_list .= "$status\n";
 	}
     }
@@ -797,19 +795,19 @@ sub status {
     return $status_list;
 }
 
-sub enable{
+sub enable_job {
     my ($param) = @_;
 
-    modify_configs($param->{name}, $param->{source},4);
+    modify_configs($param->{name}, $param->{source}, 4);
 }
 
-sub disable{
+sub disable_job {
     my ($param) = @_;
 
-    modify_configs($param->{name}, $param->{source},2);
+    modify_configs($param->{name}, $param->{source}, 2);
 }
 
-sub modify_configs{
+sub modify_configs {
     my ($name, $sou, $op) = @_;
 
     $name =  $name ? $name : "default";
@@ -817,16 +815,16 @@ sub modify_configs{
     open(my $lock_fh, ">", $LOCKFILE) || die "cannot open Lock File: $LOCKFILE\n";
     lock($lock_fh);
 
-    my $cfg = read_from_config("$CONFIG_PATH$CONFIG");
+    my $cfg = read_config();
 
     my $source = parse_target($sou);
 
     my $change_configs = sub {
 	my ($path, $name, $cfg, $op) = @_;
 
-	die "Source does not exist!\n" unless $cfg->{$path} ;
+	die "Source does not exist!\n" if !$cfg->{$path};
 
-	die "Sync Name does not exist!\n" unless $cfg->{$path}->{$name};
+	die "Sync Name does not exist!\n" if !$cfg->{$path}->{$name};
 
 	my $source = $cfg->{$path}->{$name}->{source_ip} ? "$cfg->{$path}->{$name}->{source_ip}:"  : '';
 
@@ -837,12 +835,12 @@ sub modify_configs{
 	$dest .= $cfg->{$path}->{$name}->{dest_pool} if $cfg->{$path}->{$name}->{dest_pool};
 	$dest .= $cfg->{$path}->{$name}->{dest_path} ? $cfg->{$path}->{$name}->{dest_path}  :'';
 
-	if($op == 1){
+	if($op == 1) {
 	    delete $cfg->{$path}->{$name};
 
 	    delete $cfg->{$path} if keys%{$cfg->{$path}} == 0;
 
-	    write_to_config($cfg);
+	    write_config($cfg);
 	}
 	if($op == 1 || $op == 2) {
 
@@ -850,17 +848,17 @@ sub modify_configs{
 
 		$cfg->{$path}->{$name}->{status} = "stoped";
 
-		write_to_config($cfg);
+		write_config($cfg);
 	    }
-	    write_to_cron($cfg);
+	    write_cron($cfg);
 	} elsif($op == 4) {
 	    my $job = {};
 
 	    $cfg->{$path}->{$name}->{status} = "ok";
 
-	    write_to_config($cfg);
+	    write_config($cfg);
 
-	    write_to_cron($cfg);
+	    write_cron($cfg);
 	}
     };
 
@@ -971,7 +969,7 @@ my $help_disable = "$PROGNAME disable -source <string> [OPTIONS]\n
 \t-source\tstring\n
 \t\tthe source can be an  <VMID> or [IP:]<ZFSPool>[/Path]\n";
 
-sub help{
+sub help {
     my ($command) = @_;
 
     switch($command){
@@ -1034,12 +1032,12 @@ $param->{maxsnap} = $maxsnap;
 $param->{name} = $name;
 $param->{skip} = $skip;
 
-switch($command){
+switch($command) {
     case "destroy"
     {
 	die "$help_destroy\n" if !$source;
 	check_target($source);
-	destroy($param);
+	destroy_job($param);
     }
     case "sync"
     {
@@ -1079,17 +1077,17 @@ switch($command){
     {
 	die "$help_enable\n" if !$source;
 	check_target($source);
-	enable($param);
+	enable_job($param);
     }
     case "disable"
     {
 	die "$help_disable\n" if !$source;
 	check_target($source);
-	disable($param);
+	disable_job($param);
     }
 }
 
-sub usage{
+sub usage {
     my ($help) = @_;
 
     print("ERROR:\tno command specified\n") if !$help;
@@ -1104,12 +1102,12 @@ sub usage{
     print("\t$PROGNAME sync -dest <string> -source <string> [OPTIONS]\n");
 }
 
-sub check_target{
+sub check_target {
     my ($target) = @_;
 
     chomp($target);
 
-    if($target !~ m/(\d+.\d+.\d+.\d+:)?([\w\-\_\/]+)(\/.+)?/){
+    if($target !~ m/(\d+.\d+.\d+.\d+:)?([\w\-\_\/]+)(\/.+)?/) {
 	print("ERROR:\t$target is not valid.\n\tUse [IP:]<ZFSPool>[/Path]!\n");
 	return 1;
     }
@@ -1124,9 +1122,9 @@ pve-zsync - PVE ZFS Replication Manager
 
 =head1 SYNOPSIS
 
-zfs-zsync <COMMAND> [ARGS] [OPTIONS]
+pve-zsync <COMMAND> [ARGS] [OPTIONS]
 
-zfs-zsync help <cmd> [OPTIONS]
+pve-zsync help <cmd> [OPTIONS]
 
 	Get help about specified command.
 
@@ -1138,7 +1136,7 @@ zfs-zsync help <cmd> [OPTIONS]
 
 		Verbose output format.
 
-zfs-zsync create -dest <string> -source <string> [OPTIONS]
+pve-zsync create -dest <string> -source <string> [OPTIONS]
 
           Create a sync Job
 
@@ -1170,7 +1168,7 @@ zfs-zsync create -dest <string> -source <string> [OPTIONS]
 
 		the source can be an <VMID> or [IP:]<ZFSPool>[/Path]
 
-zfs-zsync destroy -source <string> [OPTIONS]
+pve-zsync destroy -source <string> [OPTIONS]
 
           remove a sync Job from the scheduler
 
@@ -1182,7 +1180,7 @@ zfs-zsync destroy -source <string> [OPTIONS]
 
                 the source can be an  <VMID> or [IP:]<ZFSPool>[/Path]
 
-zfs-zsync disable -source <string> [OPTIONS]
+pve-zsync disable -source <string> [OPTIONS]
 
           pause a sync job
 
@@ -1194,7 +1192,7 @@ zfs-zsync disable -source <string> [OPTIONS]
 
                 the source can be an  <VMID> or [IP:]<ZFSPool>[/Path]
 
-zfs-zsync enable -source <string> [OPTIONS]
+pve-zsync enable -source <string> [OPTIONS]
 
           enable a syncjob and reset error
 
@@ -1205,15 +1203,15 @@ zfs-zsync enable -source <string> [OPTIONS]
           -source    string
 
                 the source can be an  <VMID> or [IP:]<ZFSPool>[/Path]
-zfs-zsync list
+pve-zsync list
 
 	Get a List of all scheduled Sync Jobs
 
-zfs-zsync status
+pve-zsync status
 
 	Get the status of all scheduled Sync Jobs
 
-zfs-zsync sync -dest <string> -source <string> [OPTIONS]
+pve-zsync sync -dest <string> -source <string> [OPTIONS]
 
 	will sync one time
 
@@ -1250,13 +1248,13 @@ This Tool can get remote pool on other PVE or send Pool to others ZFS machines
 =head1 EXAMPLES
 
 add sync job from local VM to remote ZFS Server
-zfs-zsync -source=100 -dest=192.168.1.2:zfspool
+pve-zsync create -source=100 -dest=192.168.1.2:zfspool
 
 =head1 IMPORTANT FILES
 
 Where the cron jobs are stored                            /etc/cron.d/pve-zsync
-Where the VM config get copied on the destination machine /var/pve-zsync
-Where the config is stored                                /var/pve-zsync
+Where the VM config get copied on the destination machine /var/pve-zsync/
+Where the config is stored                                /var/pve-zsync/
 
 Copyright (C) 2007-2015 Proxmox Server Solutions GmbH
 
