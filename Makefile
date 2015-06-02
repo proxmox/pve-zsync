@@ -1,4 +1,4 @@
-RELEASE=1.5
+RELEASE=3.4
 
 VERSION=1.5
 PACKAGE=pve-zsync
