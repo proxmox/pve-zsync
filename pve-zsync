@@ -362,7 +362,7 @@ sub format_job {
     my ($job, $line) = @_;
     my $text = "";
 
-    if ($job->{state} eq "stoped") {
+    if ($job->{state} eq "stopped") {
 	$text = "#";
     }
     if ($line) {
@@ -508,7 +508,7 @@ sub sync {
 	my ($source, $dest, $job, $param, $date) = @_;
 
 	($source->{old_snap},$source->{last_snap}) = snapshot_get($source, $dest, $param->{maxsnap}, $param->{name});
-	print Dumper $source, $dest;
+
 	eval{
 	    snapshot_add($source, $dest, $param->{name}, $date);
 
@@ -888,7 +888,7 @@ sub disable_job {
     my ($param) = @_;
 
     my $job = get_job($param);
-    $job->{state} = "stoped";
+    $job->{state} = "stopped";
     update_state($job);
     update_cron($job);
 }
@@ -1122,65 +1122,65 @@ pve-zsync help <cmd> [OPTIONS]
 
 pve-zsync create -dest <string> -source <string> [OPTIONS]
 
-          Create a sync Job
+        Create a sync Job
 
-          -dest      string
+        -dest      string
 
 		the destination target is like [IP]:<Pool>[/Path]
 
-          -limit     integer
+        -limit     integer
 
 		max sync speed in kBytes/s, default unlimited
 
-          -maxsnap   string
+        -maxsnap   string
 
 		how much snapshots will be kept before get erased, default 1
 
-          -name      string
+        -name      string
 
 		name of the sync job, if not set it is default
 
-          -skip      boolean
+        -skip      boolean
 
 		if this flag is set it will skip the first sync
 
-          -source    string
+        -source    string
 
 		the source can be an <VMID> or [IP:]<ZFSPool>[/Path]
 
 pve-zsync destroy -source <string> [OPTIONS]
 
-          remove a sync Job from the scheduler
+        remove a sync Job from the scheduler
 
-          -name      string
+        -name      string
 
 		name of the sync job, if not set it is default
 
-          -source    string
+        -source    string
 
                 the source can be an  <VMID> or [IP:]<ZFSPool>[/Path]
 
 pve-zsync disable -source <string> [OPTIONS]
 
-          pause a sync job
+        pause a sync job
 
-          -name      string
+        -name      string
 
 		name of the sync job, if not set it is default
 
-          -source    string
+        -source    string
 
                 the source can be an  <VMID> or [IP:]<ZFSPool>[/Path]
 
 pve-zsync enable -source <string> [OPTIONS]
 
-          enable a syncjob and reset error
+        enable a syncjob and reset error
 
-          -name      string
+        -name      string
 
 		name of the sync job, if not set it is default
 
-          -source    string
+        -source    string
 
                 the source can be an  <VMID> or [IP:]<ZFSPool>[/Path]
 pve-zsync list
@@ -1203,16 +1203,16 @@ pve-zsync sync -dest <string> -source <string> [OPTIONS]
 
 		max sync speed in kBytes/s, default unlimited
 
-         -maxsnap   integer
+        -maxsnap   integer
 
 		how much snapshots will be kept before get erased, default 1
 
-         -name      string
+        -name      string
 
 		name of the sync job, if not set it is default.
 		It is only necessary if scheduler allready contains this source.
 
-          -source    string
+        -source    string
 
 		the source can be an <VMID> or [IP:]<ZFSPool>[/Path]
 
@@ -1233,10 +1233,14 @@ add sync job from local VM to remote ZFS Server
 pve-zsync create -source=100 -dest=192.168.1.2:zfspool
 
 =head1 IMPORTANT FILES
+ 
+Cron jobs are stored at                                 /etc/cron.d/pve-zsync
 
-Where the cron jobs are stored                            /etc/cron.d/pve-zsync
-Where the VM config get copied on the destination machine /var/pve-zsync/
-Where the config is stored                                /var/pve-zsync/
+The VM config get copied on the destination machine to  /var/pve-zsync/
+
+The config is stored at                                 /var/pve-zsync/
+
+=head1 COPYRIGHT AND DISCLAIMER
 
 Copyright (C) 2007-2015 Proxmox Server Solutions GmbH
 
