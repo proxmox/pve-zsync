@@ -796,7 +796,7 @@ sub send_image {
     $cmd .= "-v " if $param->{verbose};
 
     if($source->{last_snap} && snapshot_exist($source ,$dest, $param->{method})) {
-	$cmd .= "-i $source->{all}\@$source->{old_snap} $source->{all}\@$source->{new_snap} ";
+	$cmd .= "-i $source->{all}\@$source->{last_snap} $source->{all}\@$source->{new_snap} ";
     } else {
 	$cmd .= "$source->{all}\@$source->{new_snap} ";
     }
