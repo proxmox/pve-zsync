@@ -246,6 +246,7 @@ sub read_state {
     if (!-e $STATE) {
 	my $new_fh = IO::File->new("> $STATE");
 	die "Could not create $STATE: $!\n" if !$new_fh;
+	print $new_fh "{}";
 	close($new_fh);
 	return undef;
     }
@@ -496,9 +497,8 @@ sub sync {
 	$job = get_job($param);
     };
 
-    if ($job && $job->{state} ne "ok") {
-	print "To reset error state use $PROGNAME enable\n" if $job->{state} eq "error" ;
-	die "Sync will not done! Status: $job->{state}\n";
+    if ($job && $job->{state} eq "syncing") {
+	die "Job --source $param->{source} --name $param->{name} is syncing at the moment";
     }
 
     my $dest = parse_target($param->{dest});
@@ -509,46 +509,47 @@ sub sync {
 
 	($source->{old_snap},$source->{last_snap}) = snapshot_get($source, $dest, $param->{maxsnap}, $param->{name});
 
-	eval{
-	    snapshot_add($source, $dest, $param->{name}, $date);
+	snapshot_add($source, $dest, $param->{name}, $date);
 
-	    send_image($source, $dest, $param);
+	send_image($source, $dest, $param);
 
-	    snapshot_destroy($source, $dest, $param->{method}, $source->{old_snap}) if ($source->{destroy} && $source->{old_snap});
-	};
-	if(my $err = $@) {
-	    if ($job) {
-		$job->{state} = "error";
-		update_state($job);
-		unlock($lock_fh);
-		close($lock_fh);
-	    }
-	    die "$err\n";
-	}
+	snapshot_destroy($source, $dest, $param->{method}, $source->{old_snap}) if ($source->{destroy} && $source->{old_snap});
+
     };
 
     if ($job) {
-	die "Job --source $param->{source} --name $param->{name} is syncing" if $job->{state} eq "syncing";
 	$job->{state} = "syncing";
 	update_state($job);
     }
 
-    if ($source->{vmid}) {
-        die "VM $source->{vmid} doesn't exist\n" if !vm_exists($source);
-	my $disks = get_disks($source);
+    eval{
+	if ($source->{vmid}) {
+	    die "VM $source->{vmid} doesn't exist\n" if !vm_exists($source);
+	    my $disks = get_disks($source);
 
-        foreach my $disk (sort keys %{$disks}) {
-	    $source->{all} = $disks->{$disk}->{all};
-	    $source->{pool} = $disks->{$disk}->{pool};
-	    $source->{path} = $disks->{$disk}->{path} if $disks->{$disk}->{path};
-	    $source->{last_part} = $disks->{$disk}->{last_part};
+	    foreach my $disk (sort keys %{$disks}) {
+		$source->{all} = $disks->{$disk}->{all};
+		$source->{pool} = $disks->{$disk}->{pool};
+		$source->{path} = $disks->{$disk}->{path} if $disks->{$disk}->{path};
+		$source->{last_part} = $disks->{$disk}->{last_part};
+		&$sync_path($source, $dest, $job, $param, $date);
+	    }
+	    if ($param->{method} eq "ssh") {
+		send_config($source, $dest,'ssh');
+	    }
+	} else {
 	    &$sync_path($source, $dest, $job, $param, $date);
 	}
-	if ($param->{method} eq "ssh") {
-	    send_config($source, $dest,'ssh');
+    };
+    if(my $err = $@) {
+	if ($job) {
+	    $job->{state} = "error";
+	    update_state($job);
+	    unlock($lock_fh);
+	    close($lock_fh);
+	    print "Job --source $param->{source} --name $param->{name} got an ERROR!!!\nERROR Message:\n";
 	}
-    } else {
-	&$sync_path($source, $dest, $job, $param, $date);
+	die "$err\n";
     }
 
     if ($job) {
@@ -671,7 +672,7 @@ sub run_cmd {
     print Dumper $cmd if $DEBUG;
     my $output = `$cmd 2>&1`;
 
-    die $output if 0 != $?;
+    die "COMMAND:\n\t$cmd\nGET ERROR:\n\t$output" if 0 != $?;
 
     chomp($output);
     print Dumper $output if $DEBUG;
@@ -1233,7 +1234,7 @@ add sync job from local VM to remote ZFS Server
 pve-zsync create -source=100 -dest=192.168.1.2:zfspool
 
 =head1 IMPORTANT FILES
- 
+
 Cron jobs are stored at                                 /etc/cron.d/pve-zsync
 
 The VM config get copied on the destination machine to  /var/pve-zsync/
