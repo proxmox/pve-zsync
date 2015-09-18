@@ -1,4 +1,10 @@
-pve-zsync (0.0-1) unstable; urgency=low
+pve-zsync (1.6-1) unstable; urgency=medium
+
+  * re-package for debian jessie
+
+ -- Proxmox Support Team <support@proxmox.com>  Fri, 18 Sep 2015 16:16:28 +0200
+
+pve-zsync (1.5-2) unstable; urgency=low
 
   * initial package
 
