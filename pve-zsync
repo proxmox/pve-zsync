@@ -696,18 +696,9 @@ sub parse_disks {
 
 	my $disk = undef;
 	my $stor = undef;
-	if($line =~ m/^(virtio\d+: )(.+:)([A-Za-z0-9\-]+),(.*)$/) {
-	    $disk = $3;
-	    $stor = $2;
-	} elsif($line =~ m/^(ide\d+: )(.+:)([A-Za-z0-9\-]+),(.*)$/) {
-	    $disk = $3;
-	    $stor = $2;
-	} elsif($line =~ m/^(scsi\d+: )(.+:)([A-Za-z0-9\-]+),(.*)$/) {
-	    $disk = $3;
-	    $stor = $2;
-	} elsif($line =~ m/^(sata\d+: )(.+:)([A-Za-z0-9\-]+),(.*)$/) {
-	    $disk = $3;
-	    $stor = $2;
+	if($line =~ m/^(?:virtio|ide|scsi|sata)\d+: (.+:)([A-Za-z0-9\-]+),(.*)$/) {
+	    $disk = $2;
+	    $stor = $1;
 	} else {
 	    die "disk is not on ZFS Storage\n";
 	}
