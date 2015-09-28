@@ -703,29 +703,27 @@ sub parse_disks {
 	    die "disk is not on ZFS Storage\n";
 	}
 
-	if($disk) {
-	    my $cmd = "";
-	    $cmd .= "ssh root\@$ip " if $ip;
-	    $cmd .= "pvesm path $stor$disk";
-	    my $path = run_cmd($cmd);
+	my $cmd = "";
+	$cmd .= "ssh root\@$ip " if $ip;
+	$cmd .= "pvesm path $stor$disk";
+	my $path = run_cmd($cmd);
 
-	    if ($path =~ m/^\/dev\/zvol\/(\w+).*(\/$disk)$/) {
+	if ($path =~ m/^\/dev\/zvol\/(\w+).*(\/$disk)$/) {
 
-		my @array = split('/', $1);
-		$disks->{$num}->{pool} = pop(@array);
-		$disks->{$num}->{all} = $disks->{$num}->{pool};
-		if (0 < @array) {
-		    $disks->{$num}->{path} = join('/', @array);
-		    $disks->{$num}->{all} .= "\/$disks->{$num}->{path}";
-		}
-		$disks->{$num}->{last_part} = $disk;
-		$disks->{$num}->{all} .= "\/$disk";
-
-		$num++;
-
-	    } else {
-		die "ERROR: in path\n";
+	    my @array = split('/', $1);
+	    $disks->{$num}->{pool} = pop(@array);
+	    $disks->{$num}->{all} = $disks->{$num}->{pool};
+	    if (0 < @array) {
+		$disks->{$num}->{path} = join('/', @array);
+		$disks->{$num}->{all} .= "\/$disks->{$num}->{path}";
 	    }
+	    $disks->{$num}->{last_part} = $disk;
+	    $disks->{$num}->{all} .= "\/$disk";
+
+	    $num++;
+
+	} else {
+	    die "ERROR: in path\n";
 	}
     }
 
