@@ -104,9 +104,9 @@ sub get_status {
 sub check_pool_exists {
     my ($target) = @_;
 
-    my $cmd = '';
-    $cmd = "ssh root\@$target->{ip} " if $target->{ip};
-    $cmd .= "zfs list $target->{all} -H";
+    my $cmd = [];
+    push @$cmd, 'ssh', "root\@$target->{ip}", '--', if $target->{ip};
+    push @$cmd, 'zfs', 'list', '-H', '--', $target->{all};
     eval {
 	run_cmd($cmd);
     };
@@ -430,9 +430,9 @@ sub list {
 sub vm_exists {
     my ($target) = @_;
 
-    my $cmd = "";
-    $cmd = "ssh root\@$target->{ip} " if ($target->{ip});
-    $cmd .= "qm status $target->{vmid}";
+    my $cmd = [];
+    push @$cmd, 'ssh', "root\@$target->{ip}", '--', if $target->{ip};
+    push @$cmd, 'qm', 'status', $target->{vmid};
 
     my $res = run_cmd($cmd);
 
@@ -454,11 +454,11 @@ sub init {
     my $dest = parse_target($param->{dest});
 
     if (my $ip =  $dest->{ip}) {
-	run_cmd("ssh-copy-id -i /root/.ssh/id_rsa.pub root\@$ip");
+	run_cmd(['ssh-copy-id', '-i', '/root/.ssh/id_rsa.pub', "root\@$ip"]);
     }
 
     if (my $ip =  $source->{ip}) {
-	run_cmd("ssh-copy-id -i /root/.ssh/id_rsa.pub root\@$ip");
+	run_cmd(['ssh-copy-id', '-i', '/root/.ssh/id_rsa.pub', "root\@$ip"]);
     }
 
     die "Pool $dest->{all} does not exists\n" if check_pool_exists($dest);
@@ -590,10 +590,10 @@ sub sync {
 sub snapshot_get{
     my ($source, $dest, $max_snap, $name) = @_;
 
-    my $cmd = "zfs list -r -t snapshot -Ho name, -S creation ";
-
-    $cmd .= $source->{all};
-    $cmd = "ssh root\@$source->{ip} ".$cmd if $source->{ip};
+    my $cmd = [];
+    push @$cmd, 'ssh', "root\@$source->{ip}", '--', if $source->{ip};
+    push @$cmd, 'zfs', 'list', '-r', '-t', 'snapshot', '-Ho', 'name', '-S', 'creation';
+    push @$cmd, $source->{all};
 
     my $raw = run_cmd($cmd);
     my $index = 0;
@@ -628,9 +628,9 @@ sub snapshot_add {
 
     my $path = "$source->{all}\@$snap_name";
 
-    my $cmd = "zfs snapshot $path";
-    $cmd = "ssh root\@$source->{ip}  $cmd" if $source->{ip};
-
+    my $cmd = [];
+    push @$cmd, 'ssh', "root\@$source->{ip}", '--', if $source->{ip};
+    push @$cmd, 'zfs', 'snapshot', $path;
     eval{
 	run_cmd($cmd);
     };
@@ -680,9 +680,9 @@ sub write_cron {
 sub get_disks {
     my ($target) = @_;
 
-    my $cmd = "";
-    $cmd = "ssh root\@$target->{ip} " if $target->{ip};
-    $cmd .= "qm config $target->{vmid}";
+    my $cmd = [];
+    push @$cmd, 'ssh', "root\@$target->{ip}", '--', if $target->{ip};
+    push @$cmd, 'qm', 'config', $target->{vmid};
 
     my $res = run_cmd($cmd);
 
@@ -729,9 +729,9 @@ sub parse_disks {
 	    die "disk is not on ZFS Storage\n";
 	}
 
-	my $cmd = "";
-	$cmd .= "ssh root\@$ip " if $ip;
-	$cmd .= "pvesm path $stor$disk";
+	my $cmd = [];
+	push @$cmd, 'ssh', "root\@$ip", '--' if $ip;
+	push @$cmd, 'pvesm', 'path', "$stor$disk";
 	my $path = run_cmd($cmd);
 
 	if ($path =~ m/^\/dev\/zvol\/(\w+.*)(\/$disk)$/) {
@@ -759,26 +759,26 @@ sub parse_disks {
 sub snapshot_destroy {
     my ($source, $dest, $method, $snap) = @_;
 
-    my $zfscmd = "zfs destroy ";
+    my @zfscmd = ('zfs', 'destroy');
     my $snapshot = "$source->{all}\@$snap";
 
     eval {
 	if($source->{ip} && $method eq 'ssh'){
-	    run_cmd("ssh root\@$source->{ip} $zfscmd $snapshot");
+	    run_cmd(['ssh', "root\@$source->{ip}", '--', @zfscmd, $snapshot]);
 	} else {
-	    run_cmd("$zfscmd $snapshot");
+	    run_cmd([@zfscmd, $snapshot]);
 	}
     };
     if (my $erro = $@) {
 	warn "WARN: $erro";
     }
     if ($dest) {
-	my $ssh =  $dest->{ip} ? "ssh root\@$dest->{ip}" : "";
+	my @ssh = $dest->{ip} ? ('ssh', "root\@$dest->{ip}", '--') : ();
 
 	my $path = "$dest->{all}\/$source->{last_part}";
 
 	eval {
-	    run_cmd("$ssh $zfscmd $path\@$snap ");
+	    run_cmd([@ssh, @zfscmd, "$path\@$snap"]);
 	};
 	if (my $erro = $@) {
 	    warn "WARN: $erro";
@@ -789,10 +789,10 @@ sub snapshot_destroy {
 sub snapshot_exist {
     my ($source ,$dest, $method) = @_;
 
-    my $cmd = "";
-    $cmd = "ssh root\@$dest->{ip} " if $dest->{ip};
-    $cmd .= "zfs list -rt snapshot -Ho name $dest->{all}";
-    $cmd .= "\/$source->{last_part}\@$source->{old_snap}";
+    my $cmd = [];
+    push @$cmd, 'ssh', "root\@$dest->{ip}", '--' if $dest->{ip};
+    push @$cmd, 'zfs', 'list', '-rt', 'snapshot', '-Ho', 'name';
+    push @$cmd, "$dest->{all}/$source->{last_part}\@$source->{old_snap}";
 
     my $text = "";
     eval {$text =run_cmd($cmd);};
@@ -810,26 +810,25 @@ sub snapshot_exist {
 sub send_image {
     my ($source, $dest, $param) = @_;
 
-    my $cmd = "";
+    my $cmd = [];
 
-    $cmd .= "ssh root\@$source->{ip} " if $source->{ip};
-    $cmd .= "zfs send ";
-    $cmd .= "-v " if $param->{verbose};
+    push @$cmd, 'ssh', "root\@$source->{ip}", '--' if $source->{ip};
+    push @$cmd, 'zfs', 'send';
+    push @$cmd, '-v' if $param->{verbose};
 
     if($source->{last_snap} && snapshot_exist($source ,$dest, $param->{method})) {
-	$cmd .= "-i $source->{all}\@$source->{last_snap} $source->{all}\@$source->{new_snap} ";
-    } else {
-	$cmd .= "$source->{all}\@$source->{new_snap} ";
+	push @$cmd, '-i', "$source->{all}\@$source->{last_snap}";
     }
+    push @$cmd, '--', "$source->{all}\@$source->{new_snap}";
 
     if ($param->{limit}){
 	my $bwl = $param->{limit}*1024;
-	$cmd .= "| cstream  -t $bwl";
+	push @$cmd, \'|', 'cstream', '-t', $bwl;
     }
-    $cmd .= "| ";
-    $cmd .= "ssh root\@$dest->{ip} " if $dest->{ip};
-    $cmd .= "zfs recv $dest->{all}";
-    $cmd .= "\/$source->{last_part}\@$source->{new_snap}";
+    push @$cmd, \'|';
+    push @$cmd, 'ssh', "root\@$dest->{ip}", '--' if $dest->{ip};
+    push @$cmd, 'zfs', 'recv', '--';
+    push @$cmd, "$dest->{all}/$source->{last_part}\@$source->{new_snap}";
 
     eval {
 	run_cmd($cmd)
@@ -850,22 +849,22 @@ sub send_config{
 
     if ($method eq 'ssh'){
 	if ($dest->{ip} && $source->{ip}) {
-	    run_cmd("ssh root\@$dest->{ip} mkdir $CONFIG_PATH -p");
-	    run_cmd("scp root\@$source->{ip}:$source_target root\@$dest->{ip}:$dest_target_new");
+	    run_cmd(['ssh', "root\@$dest->{ip}", '--', 'mkdir', '-p', '--', $CONFIG_PATH]);
+	    run_cmd(['scp', '--', "root\@[$source->{ip}]:$source_target", "root\@[$dest->{ip}]:$dest_target_new"]);
 	} elsif ($dest->{ip}) {
-	    run_cmd("ssh root\@$dest->{ip} mkdir $CONFIG_PATH -p");
-	    run_cmd("scp $source_target root\@$dest->{ip}:$dest_target_new");
+	    run_cmd(['ssh', "root\@$dest->{ip}", '--', 'mkdir', '-p', '--', $CONFIG_PATH]);
+	    run_cmd(['scp', '--', $source_target, "root\@[$dest->{ip}]:$dest_target_new"]);
 	} elsif ($source->{ip}) {
-	    run_cmd("mkdir $CONFIG_PATH -p");
-	    run_cmd("scp root\@$source->{ip}:$source_target $dest_target_new");
+	    run_cmd(['mkdir', '-p', '--', $CONFIG_PATH]);
+	    run_cmd(['scp', '--', "root\@$source->{ip}:$source_target", $dest_target_new]);
 	}
 
 	if ($source->{destroy}){
 	    my $dest_target_old ="$CONFIG_PATH$source->{vmid}.conf.$source->{old_snap}";
 	    if($dest->{ip}){
-		run_cmd("ssh root\@$dest->{ip} rm -f $dest_target_old");
+		run_cmd(['ssh', "root\@$dest->{ip}", '--', 'rm', '-f', '--', $dest_target_old]);
 	    } else {
-		run_cmd("rm -f $dest_target_old");
+		run_cmd(['rm', '-f', '--', $dest_target_old]);
 	    }
 	}
     }
