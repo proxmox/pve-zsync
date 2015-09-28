@@ -6,6 +6,7 @@ use Data::Dumper qw(Dumper);
 use Fcntl qw(:flock SEEK_END);
 use Getopt::Long qw(GetOptionsFromArray);
 use File::Copy qw(move);
+use File::Path qw(make_path);
 use Switch;
 use JSON;
 use IO::File;
@@ -244,6 +245,7 @@ sub param_to_job {
 sub read_state {
 
     if (!-e $STATE) {
+	make_path $CONFIG_PATH;
 	my $new_fh = IO::File->new("> $STATE");
 	die "Could not create $STATE: $!\n" if !$new_fh;
 	print $new_fh "{}";
