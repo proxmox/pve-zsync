@@ -23,6 +23,28 @@ my $PROG_PATH = "$PATH${PROGNAME}";
 my $INTERVAL = 15;
 my $DEBUG = 0;
 
+my $IPV4OCTET = "(?:25[0-5]|(?:[1-9]|1[0-9]|2[0-4])?[0-9])";
+my $IPV4RE = "(?:(?:$IPV4OCTET\\.){3}$IPV4OCTET)";
+my $IPV6H16 = "(?:[0-9a-fA-F]{1,4})";
+my $IPV6LS32 = "(?:(?:$IPV4RE|$IPV6H16:$IPV6H16))";
+
+my $IPV6RE = "(?:" .
+   "(?:(?:" .                             "(?:$IPV6H16:){6})$IPV6LS32)|" .
+   "(?:(?:" .                           "::(?:$IPV6H16:){5})$IPV6LS32)|" .
+   "(?:(?:(?:" .              "$IPV6H16)?::(?:$IPV6H16:){4})$IPV6LS32)|" .
+   "(?:(?:(?:(?:$IPV6H16:){0,1}$IPV6H16)?::(?:$IPV6H16:){3})$IPV6LS32)|" .
+   "(?:(?:(?:(?:$IPV6H16:){0,2}$IPV6H16)?::(?:$IPV6H16:){2})$IPV6LS32)|" .
+   "(?:(?:(?:(?:$IPV6H16:){0,3}$IPV6H16)?::(?:$IPV6H16:){1})$IPV6LS32)|" .
+   "(?:(?:(?:(?:$IPV6H16:){0,4}$IPV6H16)?::" .           ")$IPV6LS32)|" .
+   "(?:(?:(?:(?:$IPV6H16:){0,5}$IPV6H16)?::" .            ")$IPV6H16)|" .
+   "(?:(?:(?:(?:$IPV6H16:){0,6}$IPV6H16)?::" .                    ")))";
+
+my $HOSTv4RE0 = "(?:[\\w\\.\\-_]+|$IPV4RE)";       # hostname or ipv4 address
+my $HOSTv4RE1 = "(?:$HOSTv4RE0|\\[$HOSTv4RE0\\])"; # these may be in brackets, too
+my $HOSTRE = "(?:$HOSTv4RE1|\\[$IPV6RE\\])";       # ipv6 must always be in brackets
+# targets are either a VMID, or a 'host:zpool/path' with 'host:' being optional
+my $TARGETRE = qr!^(?:($HOSTRE):)?(\d+|(?:[\w\-_]+)(/.+)?)$!;
+
 check_bin ('cstream');
 check_bin ('zfs');
 check_bin ('ssh');
@@ -101,20 +123,20 @@ sub parse_target {
     my $errstr = "$text : is not a valid input! Use [IP:]<VMID> or [IP:]<ZFSPool>[/Path]";
     my $target = {};
 
-    $text =~ m/^((\d+.\d+.\d+.\d+):)?(.*)$/;
-
-    $target->{all} = $3;
-
-    if ($2) {
-	$target->{ip} = $2;
+    if ($text !~ $TARGETRE) {
+	die "$errstr\n";
     }
-    my @parts = split('/', $3);
+    $target->{all} = $2;
+    $target->{ip} = $1 if $1;
+    my @parts = split('/', $2);
 
-    die "$text $errstr\n" if !($target->{pool} = shift(@parts));
-    die "$text $errstr\n" if $target->{pool} =~ /^(\d+.\d+.\d+.\d+)$/;
+    $target->{ip} =~ s/^\[(.*)\]$/$1/ if $target->{ip};
 
-    if ($target->{pool} =~ m/^\d+$/) {
-	$target->{vmid} = $target->{pool};
+    my $pool = $target->{pool} = shift(@parts);
+    die "$errstr\n" if !$pool;
+
+    if ($pool =~ m/^\d+$/) {
+	$target->{vmid} = $pool;
 	delete $target->{pool};
     }
 
@@ -1087,14 +1109,7 @@ sub usage {
 
 sub check_target {
     my ($target) = @_;
-
-    chomp($target);
-
-    if($target !~ m/(\d+.\d+.\d+.\d+:)?([\w\-\_\/]+)(\/.+)?/) {
-	print("ERROR:\t$target is not valid.\n\tUse [IP:]<ZFSPool>[/Path]!\n");
-	return 1;
-    }
-    return undef;
+    parse_target($target);
 }
 
 __END__
