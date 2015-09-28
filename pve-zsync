@@ -708,7 +708,7 @@ sub parse_disks {
 	$cmd .= "pvesm path $stor$disk";
 	my $path = run_cmd($cmd);
 
-	if ($path =~ m/^\/dev\/zvol\/(\w+).*(\/$disk)$/) {
+	if ($path =~ m/^\/dev\/zvol\/(\w+.*)(\/$disk)$/) {
 
 	    my @array = split('/', $1);
 	    $disks->{$num}->{pool} = pop(@array);
