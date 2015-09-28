@@ -77,7 +77,7 @@ sub get_status {
     return undef;
 }
 
-sub check_pool_exsits {
+sub check_pool_exists {
     my ($target) = @_;
 
     my $cmd = '';
@@ -436,9 +436,9 @@ sub init {
 	run_cmd("ssh-copy-id -i /root/.ssh/id_rsa.pub root\@$ip");
     }
 
-    die "Pool $dest->{all} does not exists\n" if check_pool_exsits($dest);
+    die "Pool $dest->{all} does not exists\n" if check_pool_exists($dest);
 
-    my $check = check_pool_exsits($source->{path}, $source->{ip}) if !$source->{vmid} && $source->{path};
+    my $check = check_pool_exists($source->{path}, $source->{ip}) if !$source->{vmid} && $source->{path};
 
     die "Pool $source->{path} does not exists\n" if undef($check);
 
