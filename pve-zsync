@@ -692,10 +692,10 @@ sub parse_disks {
 	my $line = $1;
 
 	next if $line =~ /cdrom|none/;
+	next if $line !~ m/^(?:virtio|ide|scsi|sata)\d+: /;
 
 	my $disk = undef;
 	my $stor = undef;
-	my $is_disk = $line =~ m/^(virtio|ide|scsi|sata){1}\d+: /;
 	if($line =~ m/^(virtio\d+: )(.+:)([A-Za-z0-9\-]+),(.*)$/) {
 	    $disk = $3;
 	    $stor = $2;
@@ -708,9 +708,9 @@ sub parse_disks {
 	} elsif($line =~ m/^(sata\d+: )(.+:)([A-Za-z0-9\-]+),(.*)$/) {
 	    $disk = $3;
 	    $stor = $2;
+	} else {
+	    die "disk is not on ZFS Storage\n";
 	}
-
-	die "disk is not on ZFS Storage\n" if $is_disk && !$disk;
 
 	if($disk) {
 	    my $cmd = "";
