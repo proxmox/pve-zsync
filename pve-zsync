@@ -711,7 +711,7 @@ sub parse_disks {
 	if ($path =~ m/^\/dev\/zvol\/(\w+.*)(\/$disk)$/) {
 
 	    my @array = split('/', $1);
-	    $disks->{$num}->{pool} = pop(@array);
+	    $disks->{$num}->{pool} = shift(@array);
 	    $disks->{$num}->{all} = $disks->{$num}->{pool};
 	    if (0 < @array) {
 		$disks->{$num}->{path} = join('/', @array);
