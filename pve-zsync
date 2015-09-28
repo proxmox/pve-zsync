@@ -10,6 +10,7 @@ use File::Path qw(make_path);
 use Switch;
 use JSON;
 use IO::File;
+use String::ShellQuote 'shell_quote';
 
 my $PROGNAME = "pve-zsync";
 my $CONFIG_PATH = "/var/lib/${PROGNAME}/";
@@ -672,6 +673,9 @@ sub run_cmd {
     my ($cmd) = @_;
     print "Start CMD\n" if $DEBUG;
     print Dumper $cmd if $DEBUG;
+    if (ref($cmd) eq 'ARRAY') {
+	$cmd = join(' ', map { ref($_) ? $$_ : shell_quote($_) } @$cmd);
+    }
     my $output = `$cmd 2>&1`;
 
     die "COMMAND:\n\t$cmd\nGET ERROR:\n\t$output" if 0 != $?;
