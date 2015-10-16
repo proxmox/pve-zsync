@@ -1,4 +1,10 @@
-pve-zsync (0.0-1) unstable; urgency=low
+pve-zsync (1.5-3) unstable; urgency=low
+
+  *  fix hostnames/ipv6, and subvolumes handling
+
+ -- Proxmox Support Team <support@proxmox.com>  Fri, 16 Oct 2015 11:14:38 +0200
+
+pve-zsync (1.5-2) unstable; urgency=low
 
   * initial package
 
