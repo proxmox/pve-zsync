@@ -1,3 +1,9 @@
+pve-zsync (1.6-2) unstable; urgency=medium
+
+  * fix hostnames/ipv6, and subvolumes handling
+
+ -- Proxmox Support Team <support@proxmox.com>  Fri, 16 Oct 2015 11:01:09 +0200
+
 pve-zsync (1.6-1) unstable; urgency=medium
 
   * re-package for debian jessie
