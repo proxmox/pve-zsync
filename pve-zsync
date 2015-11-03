@@ -825,10 +825,13 @@ sub send_image {
 	my $bwl = $param->{limit}*1024;
 	push @$cmd, \'|', 'cstream', '-t', $bwl;
     }
+    my $target = "$dest->{all}/$source->{last_part}";
+    $target =~ s!/+!/!g;
+
     push @$cmd, \'|';
     push @$cmd, 'ssh', "root\@$dest->{ip}", '--' if $dest->{ip};
     push @$cmd, 'zfs', 'recv', '--';
-    push @$cmd, "$dest->{all}/$source->{last_part}\@$source->{new_snap}";
+    push @$cmd, "$target\@$source->{new_snap}";
 
     eval {
 	run_cmd($cmd)
