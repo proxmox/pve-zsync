@@ -17,7 +17,9 @@ my $CONFIG_PATH = "/var/lib/${PROGNAME}/";
 my $STATE = "${CONFIG_PATH}sync_state";
 my $CRONJOBS = "/etc/cron.d/$PROGNAME";
 my $PATH = "/usr/sbin/";
-my $QEMU_CONF = "/etc/pve/local/qemu-server/";
+my $PVE_DIR = "/etc/pve/local/";
+my $QEMU_CONF = "${PVE_DIR}qemu-server/";
+my $LXC_CONF = "${PVE_DIR}lxc/";
 my $LOCKFILE = "$CONFIG_PATH${PROGNAME}.lock";
 my $PROG_PATH = "$PATH${PROGNAME}";
 my $INTERVAL = 15;
@@ -429,14 +431,19 @@ sub list {
 
 sub vm_exists {
     my ($target) = @_;
+    
+    my @cmd = ('ssh', "root\@$target->{ip}", '--') if $target->{ip};
 
-    my $cmd = [];
-    push @$cmd, 'ssh', "root\@$target->{ip}", '--', if $target->{ip};
-    push @$cmd, 'qm', 'status', $target->{vmid};
+    my $res = undef;
 
-    my $res = run_cmd($cmd);
+    eval { $res = run_cmd([@cmd, 'ls',  "$QEMU_CONF$target->{vmid}.conf"]) };
 
-    return 1 if ($res =~ m/^status.*$/);
+    return "qemu" if $res;
+
+    eval { $res = run_cmd([@cmd, 'ls',  "$LXC_CONF$target->{vmid}.conf"]) };
+
+    return "lxc" if $res;
+
     return undef;
 }
 
@@ -467,7 +474,9 @@ sub init {
 
     die "Pool $source->{path} does not exists\n" if undef($check);
 
-    die "VM $source->{vmid} doesn't exist\n" if $param->{vmid} && !vm_exists($source);
+    my $vm_type = vm_exists($source);
+
+    die "VM $source->{vmid} doesn't exist\n" if $param->{vmid} && !$vm_type;
 
     die "Config already exists\n" if $cfg->{$job->{source}}->{$job->{name}};
 
@@ -542,14 +551,18 @@ sub sync {
 
     };
 
+    my $vm_type = vm_exists($source);
+    $source->{vm_type} = $vm_type;
+
     if ($job) {
 	$job->{state} = "syncing";
+	$job->{vm_type} = $vm_type if !$job->{vm_type};
 	update_state($job);
     }
 
     eval{
 	if ($source->{vmid}) {
-	    die "VM $source->{vmid} doesn't exist\n" if !vm_exists($source);
+	    die "VM $source->{vmid} doesn't exist\n" if !$vm_type;
 	    my $disks = get_disks($source);
 
 	    foreach my $disk (sort keys %{$disks}) {
