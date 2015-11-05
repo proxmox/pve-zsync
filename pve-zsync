@@ -864,7 +864,7 @@ sub send_image {
 sub send_config{
     my ($source, $dest, $method) = @_;
 
-    my $source_target ="$QEMU_CONF$source->{vmid}.conf";
+    my $source_target = $source->{vm_type} eq 'qemu' ? "$QEMU_CONF$source->{vmid}.conf": "$LXC_CONF$source->{vmid}.conf";
     my $dest_target_new ="$CONFIG_PATH$source->{vmid}.conf.$source->{new_snap}";
 
     if ($method eq 'ssh'){
