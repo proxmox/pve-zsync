@@ -830,8 +830,8 @@ sub send_image {
 
     push @$cmd, \'|';
     push @$cmd, 'ssh', "root\@$dest->{ip}", '--' if $dest->{ip};
-    push @$cmd, 'zfs', 'recv', '--';
-    push @$cmd, "$target\@$source->{new_snap}";
+    push @$cmd, 'zfs', 'recv', '-F', '--';
+    push @$cmd, "$target";
 
     eval {
 	run_cmd($cmd)
