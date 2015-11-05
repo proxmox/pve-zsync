@@ -888,22 +888,27 @@ sub send_config{
     my ($source, $dest, $method) = @_;
 
     my $source_target = $source->{vm_type} eq 'qemu' ? "$QEMU_CONF$source->{vmid}.conf": "$LXC_CONF$source->{vmid}.conf";
-    my $dest_target_new ="$CONFIG_PATH$source->{vmid}.conf.$source->{new_snap}";
+    my $dest_target_new ="$source->{vmid}.conf.$source->{new_snap}";
 
+    my $config_dir = $dest->{last_part} ?  "${CONFIG_PATH}$dest->{last_part}/" : $CONFIG_PATH;
+
+    $dest_target_new = $config_dir.$dest_target_new;
+
+    print Dumper $dest_target_new, $dest;
     if ($method eq 'ssh'){
 	if ($dest->{ip} && $source->{ip}) {
-	    run_cmd(['ssh', "root\@$dest->{ip}", '--', 'mkdir', '-p', '--', $CONFIG_PATH]);
+	    run_cmd(['ssh', "root\@$dest->{ip}", '--', 'mkdir', '-p', '--', $config_dir]);
 	    run_cmd(['scp', '--', "root\@[$source->{ip}]:$source_target", "root\@[$dest->{ip}]:$dest_target_new"]);
 	} elsif ($dest->{ip}) {
-	    run_cmd(['ssh', "root\@$dest->{ip}", '--', 'mkdir', '-p', '--', $CONFIG_PATH]);
+	    run_cmd(['ssh', "root\@$dest->{ip}", '--', 'mkdir', '-p', '--', $config_dir]);
 	    run_cmd(['scp', '--', $source_target, "root\@[$dest->{ip}]:$dest_target_new"]);
 	} elsif ($source->{ip}) {
-	    run_cmd(['mkdir', '-p', '--', $CONFIG_PATH]);
+	    run_cmd(['mkdir', '-p', '--', $config_dir]);
 	    run_cmd(['scp', '--', "root\@$source->{ip}:$source_target", $dest_target_new]);
 	}
 
 	if ($source->{destroy}){
-	    my $dest_target_old ="$CONFIG_PATH$source->{vmid}.conf.$source->{old_snap}";
+	    my $dest_target_old ="${config_dir}$source->{vmid}.conf.$source->{old_snap}";
 	    if($dest->{ip}){
 		run_cmd(['ssh', "root\@$dest->{ip}", '--', 'rm', '-f', '--', $dest_target_old]);
 	    } else {
@@ -911,7 +916,7 @@ sub send_config{
 	    }
 	}
     } elsif ($method eq 'local') {
-	run_cmd(['mkdir', '-p', '--', $CONFIG_PATH]);
+	run_cmd(['mkdir', '-p', '--', $config_dir]);
 	run_cmd(['cp', $source_target, $dest_target_new]);
     }
 }
