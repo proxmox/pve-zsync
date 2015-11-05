@@ -217,6 +217,7 @@ sub add_state_to_job {
 
     $job->{state} = $state->{state};
     $job->{lsync} = $state->{lsync};
+    $job->{vm_type} = $state->{vm_type};
 
     for (my $i = 0; $state->{"snap$i"}; $i++) {
 	$job->{"snap$i"} = $state->{"snap$i"};
@@ -315,6 +316,7 @@ sub update_state {
     if ($job->{state} ne "del") {
 	$state->{state} = $job->{state};
 	$state->{lsync} = $job->{lsync};
+	$state->{vm_type} = $job->{vm_type};
 
 	for (my $i = 0; $job->{"snap$i"} ; $i++) {
 	    $state->{"snap$i"} = $job->{"snap$i"};
@@ -413,15 +415,16 @@ sub list {
 
     my $cfg = read_cron();
 
-    my $list = sprintf("%-25s%-15s%-7s%-20s%-5s\n" , "SOURCE", "NAME", "STATE", "LAST SYNC", "TYPE");
+    my $list = sprintf("%-25s%-10s%-7s%-20s%-5s%-5s\n" , "SOURCE", "NAME", "STATE", "LAST SYNC", "TYPE", "CON");
 
     my $states = read_state();
     foreach my $source (sort keys%{$cfg}) {
 	foreach my $name (sort keys%{$cfg->{$source}}) {
 	    $list .= sprintf("%-25s", cut_target_width($source, 25));
-	    $list .= sprintf("%-15s", cut_target_width($name, 15));
+	    $list .= sprintf("%-10s", cut_target_width($name, 10));
 	    $list .= sprintf("%-7s", $states->{$source}->{$name}->{state});
 	    $list .= sprintf("%-20s",$states->{$source}->{$name}->{lsync});
+	    $list .= sprintf("%-5s",$states->{$source}->{$name}->{vm_type});
 	    $list .= sprintf("%-5s\n",$cfg->{$source}->{$name}->{method});
 	}
     }
@@ -475,6 +478,7 @@ sub init {
     die "Pool $source->{path} does not exists\n" if undef($check);
 
     my $vm_type = vm_exists($source);
+    $job->{vm_type} = $vm_type;
 
     die "VM $source->{vmid} doesn't exist\n" if $param->{vmid} && !$vm_type;
 
