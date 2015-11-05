@@ -576,8 +576,10 @@ sub sync {
 		$source->{last_part} = $disks->{$disk}->{last_part};
 		&$sync_path($source, $dest, $job, $param, $date);
 	    }
-	    if ($param->{method} eq "ssh") {
+	    if ($param->{method} eq "ssh" && ($source->{ip} || $dest->{ip})) {
 		send_config($source, $dest,'ssh');
+	    } else {
+		send_config($source, $dest,'local');
 	    }
 	} else {
 	    &$sync_path($source, $dest, $job, $param, $date);
@@ -733,7 +735,7 @@ sub run_cmd {
 }
 
 sub parse_disks {
-    my ($text, $ip) = @_;
+    my ($text, $ip, $vm_type) = @_;
 
     my $disks;
 
@@ -908,6 +910,9 @@ sub send_config{
 		run_cmd(['rm', '-f', '--', $dest_target_old]);
 	    }
 	}
+    } elsif ($method eq 'local') {
+	run_cmd(['mkdir', '-p', '--', $CONFIG_PATH]);
+	run_cmd(['cp', $source_target, $dest_target_new]);
     }
 }
 
