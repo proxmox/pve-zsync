@@ -699,11 +699,18 @@ sub get_disks {
 
     my $cmd = [];
     push @$cmd, 'ssh', "root\@$target->{ip}", '--', if $target->{ip};
-    push @$cmd, 'qm', 'config', $target->{vmid};
+
+    if ($target->{vm_type} eq 'qemu') {
+	push @$cmd, 'qm', 'config', $target->{vmid};
+    } elsif ($target->{vm_type} eq 'lxc') {
+	push @$cmd, 'pct', 'config', $target->{vmid};
+    } else {
+	die "VM Type unknown\n";
+    }
 
     my $res = run_cmd($cmd);
 
-    my $disks = parse_disks($res, $target->{ip});
+    my $disks = parse_disks($res, $target->{ip}, $target->{vm_type});
 
     return $disks;
 }
@@ -735,13 +742,13 @@ sub parse_disks {
 	my $line = $1;
 
 	next if $line =~ /cdrom|none/;
-	next if $line !~ m/^(?:virtio|ide|scsi|sata)\d+: /;
+	next if $line !~ m/^(?:((?:virtio|ide|scsi|sata|mp)\d+)|rootfs): /;
 
 	my $disk = undef;
 	my $stor = undef;
-	if($line =~ m/^(?:virtio|ide|scsi|sata)\d+: (.+:)([A-Za-z0-9\-]+),(.*)$/) {
-	    $disk = $2;
-	    $stor = $1;
+	if($line =~ m/^(?:((?:virtio|ide|scsi|sata|mp)\d+)|rootfs): (.+:)([A-Za-z0-9\-]+),(.*)$/) {
+	    $disk = $3;
+	    $stor = $2;
 	} else {
 	    die "disk is not on ZFS Storage\n";
 	}
@@ -751,7 +758,7 @@ sub parse_disks {
 	push @$cmd, 'pvesm', 'path', "$stor$disk";
 	my $path = run_cmd($cmd);
 
-	if ($path =~ m/^\/dev\/zvol\/(\w+.*)(\/$disk)$/) {
+	if ($vm_type eq 'qemu' && $path =~ m/^\/dev\/zvol\/(\w+.*)(\/$disk)$/) {
 
 	    my @array = split('/', $1);
 	    $disks->{$num}->{pool} = shift(@array);
@@ -760,6 +767,20 @@ sub parse_disks {
 		$disks->{$num}->{path} = join('/', @array);
 		$disks->{$num}->{all} .= "\/$disks->{$num}->{path}";
 	    }
+	    $disks->{$num}->{last_part} = $disk;
+	    $disks->{$num}->{all} .= "\/$disk";
+
+	    $num++;
+	} elsif ($vm_type eq 'lxc' && $path =~ m/^\/(\w+.+)\/(\w+.*)(\/$disk)$/) {
+
+	    $disks->{$num}->{pool} = $1;
+	    $disks->{$num}->{all} = $disks->{$num}->{pool};
+
+	    if ($2) {
+		$disks->{$num}->{path} = $2;
+		$disks->{$num}->{all} .= "\/$disks->{$num}->{path}";
+	    }
+
 	    $disks->{$num}->{last_part} = $disk;
 	    $disks->{$num}->{all} .= "\/$disk";
 
