@@ -1,3 +1,19 @@
+pve-zsync (1.6-4) unstable; urgency=medium
+
+  * improve reliability and recover chnged snapshots on source
+
+  * improve vm_exist: check both lxc and qemu and return the type of the VM
+
+  * update list output and include vmtype
+
+  * support LXC containers
+
+  * extend send_config with method local
+
+  * decode in config name the type of config
+
+ -- Proxmox Support Team <support@proxmox.com>  Fri, 06 Nov 2015 10:29:29 +0100
+
 pve-zsync (1.6-3) unstable; urgency=medium
 
   * fix to many slashes in recv pat
