@@ -1,3 +1,9 @@
+pve-zsync (1.6-5) unstable; urgency=medium
+
+  * fix disk parser
+
+ -- Proxmox Support Team <support@proxmox.com>  Fri, 06 Nov 2015 16:44:42 +0100
+
 pve-zsync (1.6-4) unstable; urgency=medium
 
   * improve reliability and recover chnged snapshots on source
