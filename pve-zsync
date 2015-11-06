@@ -774,13 +774,13 @@ sub parse_disks {
 	    $disks->{$num}->{all} .= "\/$disk";
 
 	    $num++;
-	} elsif ($vm_type eq 'lxc' && $path =~ m/^\/(\w+.+)\/(\w+.*)(\/$disk)$/) {
+	} elsif ($vm_type eq 'lxc' && $path =~ m/^\/(\w+.+)(\/(\w+.*))*(\/$disk)$/) {
 
 	    $disks->{$num}->{pool} = $1;
 	    $disks->{$num}->{all} = $disks->{$num}->{pool};
 
 	    if ($2) {
-		$disks->{$num}->{path} = $2;
+		$disks->{$num}->{path} = $3;
 		$disks->{$num}->{all} .= "\/$disks->{$num}->{path}";
 	    }
 
