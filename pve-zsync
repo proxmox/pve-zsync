@@ -13,15 +13,15 @@ use IO::File;
 use String::ShellQuote 'shell_quote';
 
 my $PROGNAME = "pve-zsync";
-my $CONFIG_PATH = "/var/lib/${PROGNAME}/";
-my $STATE = "${CONFIG_PATH}sync_state";
+my $CONFIG_PATH = "/var/lib/${PROGNAME}";
+my $STATE = "${CONFIG_PATH}/sync_state";
 my $CRONJOBS = "/etc/cron.d/$PROGNAME";
-my $PATH = "/usr/sbin/";
-my $PVE_DIR = "/etc/pve/local/";
-my $QEMU_CONF = "${PVE_DIR}qemu-server/";
-my $LXC_CONF = "${PVE_DIR}lxc/";
-my $LOCKFILE = "$CONFIG_PATH${PROGNAME}.lock";
-my $PROG_PATH = "$PATH${PROGNAME}";
+my $PATH = "/usr/sbin";
+my $PVE_DIR = "/etc/pve/local";
+my $QEMU_CONF = "${PVE_DIR}/qemu-server";
+my $LXC_CONF = "${PVE_DIR}/lxc";
+my $LOCKFILE = "$CONFIG_PATH/${PROGNAME}.lock";
+my $PROG_PATH = "$PATH/${PROGNAME}";
 my $INTERVAL = 15;
 my $DEBUG = 0;
 
@@ -439,11 +439,11 @@ sub vm_exists {
 
     my $res = undef;
 
-    eval { $res = run_cmd([@cmd, 'ls',  "$QEMU_CONF$target->{vmid}.conf"]) };
+    eval { $res = run_cmd([@cmd, 'ls',  "$QEMU_CONF/$target->{vmid}.conf"]) };
 
     return "qemu" if $res;
 
-    eval { $res = run_cmd([@cmd, 'ls',  "$LXC_CONF$target->{vmid}.conf"]) };
+    eval { $res = run_cmd([@cmd, 'ls',  "$LXC_CONF/$target->{vmid}.conf"]) };
 
     return "lxc" if $res;
 
@@ -623,6 +623,7 @@ sub snapshot_get{
     while ($raw && $raw =~ s/^(.*?)(\n|$)//) {
 	$line = $1;
 	if ($line =~ m/(rep_$name.*)$/) {
+
 	    $last_snap = $1 if (!$last_snap);
 	    $old_snap = $1;
 	    $index++;
@@ -887,14 +888,13 @@ sub send_image {
     sub send_config{
 	my ($source, $dest, $method) = @_;
 
-	my $source_target = $source->{vm_type} eq 'qemu' ? "$QEMU_CONF$source->{vmid}.conf": "$LXC_CONF$source->{vmid}.conf";
+	my $source_target = $source->{vm_type} eq 'qemu' ? "$QEMU_CONF/$source->{vmid}.conf": "$LXC_CONF/$source->{vmid}.conf";
 	my $dest_target_new ="$source->{vmid}.conf.$source->{vm_type}.$source->{new_snap}";
 
-	my $config_dir = $dest->{last_part} ?  "${CONFIG_PATH}$dest->{last_part}/" : $CONFIG_PATH;
+	my $config_dir = $dest->{last_part} ?  "${CONFIG_PATH}/$dest->{last_part}" : $CONFIG_PATH;
 
-	$dest_target_new = $config_dir.$dest_target_new;
+	$dest_target_new = $config_dir.'/'.$dest_target_new;
 
-	print Dumper $dest_target_new, $dest;
 	if ($method eq 'ssh'){
 	    if ($dest->{ip} && $source->{ip}) {
 		run_cmd(['ssh', "root\@$dest->{ip}", '--', 'mkdir', '-p', '--', $config_dir]);
@@ -908,7 +908,7 @@ sub send_image {
 	    }
 
 	    if ($source->{destroy}){
-		my $dest_target_old ="${config_dir}$source->{vmid}.conf.$source->{old_snap}";
+		my $dest_target_old ="${config_dir}/$source->{vmid}.conf.$source->{vm_type}.$source->{old_snap}";
 		if($dest->{ip}){
 		    run_cmd(['ssh', "root\@$dest->{ip}", '--', 'rm', '-f', '--', $dest_target_old]);
 		} else {
@@ -996,7 +996,7 @@ sub send_image {
 
     my $help_create = "$PROGNAME create -dest <string> -source <string> [OPTIONS]/n
 \tCreate a sync Job\n
-\t-dest\tstringn\n
+\t-dest\tstring\n
 \t\tthe destination target is like [IP]:<Pool>[/Path]\n
 \t-limit\tinteger\n
 \t\tmax sync speed in kBytes/s, default unlimited\n
@@ -1162,160 +1162,160 @@ sub send_image {
 	parse_target($target);
     }
 
-    __END__
+__END__
 
-	=head1 NAME
+=head1 NAME
 
-	pve-zsync - PVE ZFS Replication Manager
+pve-zsync - PVE ZFS Replication Manager
 
-	=head1 SYNOPSIS
+=head1 SYNOPSIS
 
-	pve-zsync <COMMAND> [ARGS] [OPTIONS]
+pve-zsync <COMMAND> [ARGS] [OPTIONS]
 
-	pve-zsync help <cmd> [OPTIONS]
+pve-zsync help <cmd> [OPTIONS]
 
 	Get help about specified command.
 
-	<cmd>      string
+        <cmd>      string
 
-	Command name
+		Command name
 
 	-verbose   boolean
 
-	Verbose output format.
+		Verbose output format.
 
-	pve-zsync create -dest <string> -source <string> [OPTIONS]
+pve-zsync create -dest <string> -source <string> [OPTIONS]
 
-	Create a sync Job
+        Create a sync Job
 
-	-dest      string
+        -dest      string
 
-	the destination target is like [IP]:<Pool>[/Path]
+		the destination target is like [IP]:<Pool>[/Path]
 
-	-limit     integer
+        -limit     integer
 
 		max sync speed in kBytes/s, default unlimited
 
-						   -maxsnap   string
+        -maxsnap   string
 
-						   how much snapshots will be kept before get erased, default 1
+		how much snapshots will be kept before get erased, default 1
 
-						   -name      string
+        -name      string
 
-						   name of the sync job, if not set it is default
+		name of the sync job, if not set it is default
 
-						   -skip      boolean
+        -skip      boolean
 
-						   if this flag is set it will skip the first sync
+		if this flag is set it will skip the first sync
 
-						   -source    string
+        -source    string
 
-						   the source can be an <VMID> or [IP:]<ZFSPool>[/Path]
+		the source can be an <VMID> or [IP:]<ZFSPool>[/Path]
 
 pve-zsync destroy -source <string> [OPTIONS]
 
-	remove a sync Job from the scheduler
+        remove a sync Job from the scheduler
 
-	-name      string
+        -name      string
 
 		name of the sync job, if not set it is default
 
-	-source    string
+        -source    string
 
-		the source can be an  <VMID> or [IP:]<ZFSPool>[/Path]
+                the source can be an  <VMID> or [IP:]<ZFSPool>[/Path]
 
-						   pve-zsync disable -source <string> [OPTIONS]
+pve-zsync disable -source <string> [OPTIONS]
 
-						   pause a sync job
+        pause a sync job
 
-						   -name      string
+        -name      string
 
-						   name of the sync job, if not set it is default
+		name of the sync job, if not set it is default
 
-						   -source    string
+        -source    string
 
-						   the source can be an  <VMID> or [IP:]<ZFSPool>[/Path]
+                the source can be an  <VMID> or [IP:]<ZFSPool>[/Path]
 
 pve-zsync enable -source <string> [OPTIONS]
 
-	enable a syncjob and reset error
+        enable a syncjob and reset error
 
-	-name      string
+        -name      string
 
 		name of the sync job, if not set it is default
 
-	-source    string
+        -source    string
 
-	the source can be an  <VMID> or [IP:]<ZFSPool>[/Path]
-						   pve-zsync list
+                the source can be an  <VMID> or [IP:]<ZFSPool>[/Path]
+pve-zsync list
 
-						   Get a List of all scheduled Sync Jobs
+	Get a List of all scheduled Sync Jobs
 
-						   pve-zsync status
+pve-zsync status
 
-						   Get the status of all scheduled Sync Jobs
+	Get the status of all scheduled Sync Jobs
 
-						   pve-zsync sync -dest <string> -source <string> [OPTIONS]
+pve-zsync sync -dest <string> -source <string> [OPTIONS]
 
-						   will sync one time
+	will sync one time
 
-						   -dest      string
+        -dest      string
 
-						   the destination target is like [IP:]<Pool>[/Path]
+		the destination target is like [IP:]<Pool>[/Path]
 
 	-limit     integer
 
 		max sync speed in kBytes/s, default unlimited
 
-											      -maxsnap   integer
+        -maxsnap   integer
 
-											      how much snapshots will be kept before get erased, default 1
+		how much snapshots will be kept before get erased, default 1
 
-											      -name      string
+        -name      string
 
-											      name of the sync job, if not set it is default.
-											      It is only necessary if scheduler allready contains this source.
+		name of the sync job, if not set it is default.
+		It is only necessary if scheduler allready contains this source.
 
-											      -source    string
+        -source    string
 
-											      the source can be an <VMID> or [IP:]<ZFSPool>[/Path]
+		the source can be an <VMID> or [IP:]<ZFSPool>[/Path]
 
 =head1 DESCRIPTION
 
 This Tool helps you to sync your VM or directory which stored on ZFS between 2 servers.
 This tool also has the capability to add jobs to cron so the sync will be automatically done.
 The default syncing interval is set to 15 min, if you want to change this value you can do this in /etc/cron.d/pve-zsync.
-																	    To config cron see man crontab.
+To config cron see man crontab.
 
-																	    =head2 PVE ZFS Storage sync Tool
+=head2 PVE ZFS Storage sync Tool
 
-																	    This Tool can get remote pool on other PVE or send Pool to others ZFS machines
+This Tool can get remote pool on other PVE or send Pool to others ZFS machines
 
-																	    =head1 EXAMPLES
+=head1 EXAMPLES
 
-																	    add sync job from local VM to remote ZFS Server
-																	    pve-zsync create -source=100 -dest=192.168.1.2:zfspool
+add sync job from local VM to remote ZFS Server
+pve-zsync create -source=100 -dest=192.168.1.2:zfspool
 
-																	    =head1 IMPORTANT FILES
+=head1 IMPORTANT FILES
 
-																	    Cron jobs and config are stored at                      /etc/cron.d/pve-zsync
+Cron jobs and config are stored at                      /etc/cron.d/pve-zsync
 
-																	    The VM config get copied on the destination machine to  /var/lib/pve-zsync/
+The VM config get copied on the destination machine to  /var/lib/pve-zsync/
 
-																	    =head1 COPYRIGHT AND DISCLAIMER
+=head1 COPYRIGHT AND DISCLAIMER
 
-																	    Copyright (C) 2007-2015 Proxmox Server Solutions GmbH
+Copyright (C) 2007-2015 Proxmox Server Solutions GmbH
 
-																	    This program is free software: you can redistribute it and/or modify it
+This program is free software: you can redistribute it and/or modify it
 under the terms of the GNU Affero General Public License as published
 by the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
 
-    This program is distributed in the hope that it will be useful, but
-    WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-    Affero General Public License for more details.
+This program is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+Affero General Public License for more details.
 
-    You should have received a copy of the GNU Affero General Public
-    License along with this program.  If not, see
-    <http://www.gnu.org/licenses/>.
+You should have received a copy of the GNU Affero General Public
+License along with this program.  If not, see
+<http://www.gnu.org/licenses/>.
