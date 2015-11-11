@@ -415,16 +415,16 @@ sub list {
 
     my $cfg = read_cron();
 
-    my $list = sprintf("%-25s%-10s%-7s%-20s%-5s%-5s\n" , "SOURCE", "NAME", "STATE", "LAST SYNC", "TYPE", "CON");
+    my $list = sprintf("%-25s%-25s%-10s%-20s%-6s%-5s\n" , "SOURCE", "NAME", "STATE", "LAST SYNC", "TYPE", "CON");
 
     my $states = read_state();
     foreach my $source (sort keys%{$cfg}) {
 	foreach my $name (sort keys%{$cfg->{$source}}) {
 	    $list .= sprintf("%-25s", cut_target_width($source, 25));
-	    $list .= sprintf("%-10s", cut_target_width($name, 10));
-	    $list .= sprintf("%-7s", $states->{$source}->{$name}->{state});
+	    $list .= sprintf("%-25s", cut_target_width($name, 25));
+	    $list .= sprintf("%-10s", $states->{$source}->{$name}->{state});
 	    $list .= sprintf("%-20s", $states->{$source}->{$name}->{lsync});
-	    $list .= sprintf("%-5s", $states->{$source}->{$name}->{vm_type});
+	    $list .= sprintf("%-6s", $states->{$source}->{$name}->{vm_type});
 	    $list .= sprintf("%-5s\n", $cfg->{$source}->{$name}->{method});
 	}
     }
@@ -946,14 +946,14 @@ sub send_image {
     sub status {
 	my $cfg = read_cron();
 
-	my $status_list = sprintf("%-25s%-15s%-10s\n", "SOURCE", "NAME", "STATUS");
+	my $status_list = sprintf("%-25s%-25s%-10s\n", "SOURCE", "NAME", "STATUS");
 
 	my $states = read_state();
 
 	foreach my $source (sort keys%{$cfg}) {
 	    foreach my $sync_name (sort keys%{$cfg->{$source}}) {
 		$status_list .= sprintf("%-25s", cut_target_width($source, 25));
-		$status_list .= sprintf("%-15s", cut_target_width($sync_name, 25));
+		$status_list .= sprintf("%-25s", cut_target_width($sync_name, 25));
 		$status_list .= "$states->{$source}->{$sync_name}->{state}\n";
 	    }
 	}
