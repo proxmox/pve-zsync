@@ -479,10 +479,14 @@ sub init {
 
     my $vm_type = vm_exists($source);
     $job->{vm_type} = $vm_type;
+    $source->{vm_type} = $vm_type;
 
     die "VM $source->{vmid} doesn't exist\n" if $param->{vmid} && !$vm_type;
 
     die "Config already exists\n" if $cfg->{$job->{source}}->{$job->{name}};
+
+    #check if vm has zfs disks if not die;
+    get_disks($source, 1) if $source->{vmid};
 
     update_cron($job);
     update_state($job);
@@ -698,7 +702,7 @@ sub write_cron {
 }
 
 sub get_disks {
-    my ($target) = @_;
+    my ($target, $get_err) = @_;
 
     my $cmd = [];
     push @$cmd, 'ssh', "root\@$target->{ip}", '--', if $target->{ip};
@@ -713,7 +717,7 @@ sub get_disks {
 
     my $res = run_cmd($cmd);
 
-    my $disks = parse_disks($res, $target->{ip}, $target->{vm_type});
+    my $disks = parse_disks($res, $target->{ip}, $target->{vm_type}, $get_err);
 
     return $disks;
 }
@@ -736,16 +740,23 @@ sub run_cmd {
 }
 
 sub parse_disks {
-    my ($text, $ip, $vm_type) = @_;
+    my ($text, $ip, $vm_type, $get_err) = @_;
 
     my $disks;
 
     my $num = 0;
     while ($text && $text =~ s/^(.*?)(\n|$)//) {
 	my $line = $1;
+	my $error = $vm_type eq 'qemu' ? 1 : 0 ;
 
 	next if $line =~ /cdrom|none/;
 	next if $line !~ m/^(?:((?:virtio|ide|scsi|sata|mp)\d+)|rootfs): /;
+
+	#QEMU if backup is not set include in  sync
+	next if $vm_type eq 'qemu && ($line =~ m/backup=(?i:0|no|off|false)/)';
+
+	#LXC if backup is not set do no in sync
+	$error = ($line =~ m/backup=(?i:1|yes|on|true)/) if $vm_type eq 'lxc';
 
 	my $disk = undef;
 	my $stor = undef;
@@ -753,7 +764,8 @@ sub parse_disks {
 	    $disk = $3;
 	    $stor = $2;
 	} else {
-	    die "disk is not on ZFS Storage\n";
+	    print "Disk: \"$line\" will not include in pve-sync\n" if $get_err || $error;
+	    next;
 	}
 
 	my $cmd = [];
@@ -796,6 +808,7 @@ sub parse_disks {
 	}
     }
 
+    die "Vm include no disk on zfs.\n" if !$disks->{0};
     return $disks;
 }
 
