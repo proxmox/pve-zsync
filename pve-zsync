@@ -760,7 +760,7 @@ sub parse_disks {
 
 	my $disk = undef;
 	my $stor = undef;
-	if($line =~ m/^(?:((?:virtio|ide|scsi|sata|mp)\d+)|rootfs): (.+:)([A-Za-z0-9\-]+),(.*)$/) {
+	if($line =~ m/^(?:((?:virtio|ide|scsi|sata|mp)\d+)|rootfs): ([^:]+:)([A-Za-z0-9\-]+),(.*)$/) {
 	    $disk = $3;
 	    $stor = $2;
 	} else {
