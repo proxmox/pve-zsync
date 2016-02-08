@@ -1,3 +1,9 @@
+pve-zsync (1.6-8) unstable; urgency=medium
+
+  * fix #887 add "--limit" option to cron
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 08 Feb 2016 14:40:01 +0100
+
 pve-zsync (1.6-7) unstable; urgency=medium
 
   * safer disk matching (improved regex)
