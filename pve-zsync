@@ -404,6 +404,7 @@ sub format_job {
     $text .= " root";
     $text .= " $PROGNAME sync --source $job->{source} --dest $job->{dest}";
     $text .= " --name $job->{name} --maxsnap $job->{maxsnap}";
+    $text .= " --limit $job->{limit}" if $job->{limit};
     $text .= " --method $job->{method}";
     $text .= " --verbose" if $job->{verbose};
     $text .= "\n";
