@@ -484,7 +484,7 @@ sub init {
     $job->{vm_type} = $vm_type;
     $source->{vm_type} = $vm_type;
 
-    die "VM $source->{vmid} doesn't exist\n" if $param->{vmid} && !$vm_type;
+    die "VM $source->{vmid} doesn't exist\n" if $source->{vmid} && !$vm_type;
 
     die "Config already exists\n" if $cfg->{$job->{source}}->{$job->{name}};
 
