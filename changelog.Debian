@@ -1,3 +1,9 @@
+pve-zsync (1.6-9) unstable; urgency=medium
+
+  * fix #910: Correctly handle undef
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 09 Mar 2016 14:44:23 +0100
+
 pve-zsync (1.6-8) unstable; urgency=medium
 
   * fix #887 add "--limit" option to cron
