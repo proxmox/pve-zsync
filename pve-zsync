@@ -425,7 +425,7 @@ sub list {
 	    $list .= sprintf("%-25s", cut_target_width($name, 25));
 	    $list .= sprintf("%-10s", $states->{$source}->{$name}->{state});
 	    $list .= sprintf("%-20s", $states->{$source}->{$name}->{lsync});
-	    $list .= sprintf("%-6s", $states->{$source}->{$name}->{vm_type});
+	    $list .= sprintf("%-6s", defined($states->{$source}->{$name}->{vm_type}) ? $states->{$source}->{$name}->{vm_type} : "undef");
 	    $list .= sprintf("%-5s\n", $cfg->{$source}->{$name}->{method});
 	}
     }
@@ -439,6 +439,8 @@ sub vm_exists {
     my @cmd = ('ssh', "root\@$target->{ip}", '--') if $target->{ip};
 
     my $res = undef;
+
+    return undef if !defined($target->{vmid});
 
     eval { $res = run_cmd([@cmd, 'ls',  "$QEMU_CONF/$target->{vmid}.conf"]) };
 
