@@ -763,9 +763,17 @@ sub parse_disks {
 
 	my $disk = undef;
 	my $stor = undef;
-	if($line =~ m/^(?:((?:virtio|ide|scsi|sata|mp)\d+)|rootfs): ([^:]+:)([A-Za-z0-9\-]+),(.*)$/) {
-	    $disk = $3;
-	    $stor = $2;
+	if($line =~ m/^(?:(?:(?:virtio|ide|scsi|sata|mp)\d+)|rootfs): (.*)$/) {
+	    my @parameter = split(/,/,$1);
+
+	    foreach my $opt (@parameter) {
+		if ($opt =~ m/^(?:file=|volume=)?([^:]+:)([A-Za-z0-9\-]+)$/){
+		    $disk = $2;
+		    $stor = $1;
+		    last;
+		}
+	    }
+
 	} else {
 	    print "Disk: \"$line\" will not include in pve-sync\n" if $get_err || $error;
 	    next;
