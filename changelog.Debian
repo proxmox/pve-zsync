@@ -1,3 +1,9 @@
+pve-zsync (1.6-10) unstable; urgency=medium
+
+  * fix #1004 adapt regex to new schema
+
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 02 Jun 2016 10:57:46 +0200
+
 pve-zsync (1.6-9) unstable; urgency=medium
 
   * fix #910: Correctly handle undef
