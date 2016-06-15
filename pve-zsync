@@ -114,9 +114,9 @@ sub check_pool_exists {
     };
 
     if ($@) {
-	return 1;
+	return 0;
     }
-    return undef;
+    return 1;
 }
 
 sub parse_target {
