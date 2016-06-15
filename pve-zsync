@@ -477,11 +477,11 @@ sub init {
 	run_cmd(['ssh-copy-id', '-i', '/root/.ssh/id_rsa.pub', "root\@$ip"]);
     }
 
-    die "Pool $dest->{all} does not exists\n" if check_pool_exists($dest);
+    die "Pool $dest->{all} does not exists\n" if !check_pool_exists($dest);
 
-    my $check = check_pool_exists($source->{path}, $source->{ip}) if !$source->{vmid} && $source->{path};
-
-    die "Pool $source->{path} does not exists\n" if undef($check);
+    if (!defined($source->{vmid})) {
+	die "Pool $source->{all} does not exists\n" if !check_pool_exists($source);
+    }
 
     my $vm_type = vm_exists($source);
     $job->{vm_type} = $vm_type;
