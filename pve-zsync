@@ -107,7 +107,10 @@ sub check_pool_exists {
     my ($target) = @_;
 
     my $cmd = [];
-    push @$cmd, 'ssh', "root\@$target->{ip}", '--', if $target->{ip};
+
+    if ($target->{ip}) {
+	push @$cmd, 'ssh', "root\@$target->{ip}", '--';
+    }
     push @$cmd, 'zfs', 'list', '-H', '--', $target->{all};
     eval {
 	run_cmd($cmd);
