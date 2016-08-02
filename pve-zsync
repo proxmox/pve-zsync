@@ -881,7 +881,7 @@ sub send_image {
 
     my $cmd = [];
 
-    push @$cmd, 'ssh', "root\@$source->{ip}", '--' if $source->{ip};
+    push @$cmd, 'ssh', '-o', 'BatchMode=yes', "root\@$source->{ip}", '--' if $source->{ip};
     push @$cmd, 'zfs', 'send';
     push @$cmd, '-v' if $param->{verbose};
 
@@ -898,7 +898,7 @@ sub send_image {
     $target =~ s!/+!/!g;
 
     push @$cmd, \'|';
-	push @$cmd, 'ssh', "root\@$dest->{ip}", '--' if $dest->{ip};
+	push @$cmd, 'ssh', '-o', 'BatchMode=yes', "root\@$dest->{ip}", '--' if $dest->{ip};
 	push @$cmd, 'zfs', 'recv', '-F', '--';
 	push @$cmd, "$target";
 
