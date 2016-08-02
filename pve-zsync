@@ -7,7 +7,6 @@ use Fcntl qw(:flock SEEK_END);
 use Getopt::Long qw(GetOptionsFromArray);
 use File::Copy qw(move);
 use File::Path qw(make_path);
-use Switch;
 use JSON;
 use IO::File;
 use String::ShellQuote 'shell_quote';
@@ -1075,39 +1074,30 @@ sub send_image {
     sub help {
 	my ($command) = @_;
 
-	switch($command){
-	    case 'help'
-	    {
-		die "$help_help\n";
-	    }
-	    case 'sync'
-	    {
-		die "$help_sync\n";
-	    }
-	    case 'destroy'
-	    {
-		die "$help_destroy\n";
-	    }
-	    case 'create'
-	    {
-		die "$help_create\n";
-	    }
-	    case 'list'
-	    {
-		die "$help_list\n";
-	    }
-	    case 'status'
-	    {
-		die "$help_status\n";
-	    }
-	    case 'enable'
-	    {
-		die "$help_enable\n";
-	    }
-	    case 'disable'
-	    {
-		die "$help_enable\n";
-	    }
+	if ($command eq 'help') {
+	    die "$help_help\n";
+
+	} elsif ($command eq 'sync') {
+	    die "$help_sync\n";
+
+	} elsif ($command eq 'destroy') {
+	    die "$help_destroy\n";
+
+	} elsif ($command eq 'create') {
+	    die "$help_create\n";
+
+	} elsif ($command eq 'list') {
+	    die "$help_list\n";
+
+	} elsif ($command eq 'status') {
+	    die "$help_status\n";
+
+	} elsif ($command eq 'enable') {
+	    die "$help_enable\n";
+
+	} elsif ($command eq 'disable') {
+	    die "$help_disable\n";
+
 	}
 
     }
@@ -1115,60 +1105,59 @@ sub send_image {
     my @arg = @ARGV;
     my $param = parse_argv(@arg);
 
+    if ($command eq 'destroy') {
+	die "$help_destroy\n" if !$param->{source};
 
-    switch($command) {
-	case "destroy"
-	{
-	    die "$help_destroy\n" if !$param->{source};
-	    check_target($param->{source});
-	    destroy_job($param);
+	check_target($param->{source});
+	destroy_job($param);
+
+    } elsif ($command eq 'sync') {
+	die "$help_sync\n" if !$param->{source} || !$param->{dest};
+
+	check_target($param->{source});
+	check_target($param->{dest});
+	sync($param);
+
+    } elsif ($command eq 'create') {
+	die "$help_create\n" if !$param->{source} || !$param->{dest};
+
+	check_target($param->{source});
+	check_target($param->{dest});
+	init($param);
+
+    } elsif ($command eq 'status') {
+	print status();
+
+    } elsif ($command eq 'list') {
+	print list();
+
+    } elsif ($command eq 'help') {
+	my $help_command = $ARGV[1];
+
+	if ($help_command && $commands->{$help_command}) {
+	    print help($help_command);
+
 	}
-	case "sync"
-	{
-	    die "$help_sync\n" if !$param->{source} || !$param->{dest};
-	    check_target($param->{source});
-	    check_target($param->{dest});
-	    sync($param);
+	if ($param->{verbose} == 1){
+	    exec("man $PROGNAME");
+
+	} else {
+	    usage(1);
+
 	}
-	case "create"
-	{
-	    die "$help_create\n" if !$param->{source} || !$param->{dest};
-	    check_target($param->{source});
-	    check_target($param->{dest});
-	    init($param);
-	}
-	case "status"
-	{
-	    print status();
-	}
-	case "list"
-	{
-	    print list();
-	}
-	case "help"
-	{
-	    my $help_command = $ARGV[1];
-	    if ($help_command && $commands->{$help_command}) {
-		print help($help_command);
-	    }
-	    if ($param->{verbose} == 1){
-		exec("man $PROGNAME");
-	    } else {
-		usage(1);
-	    }
-	}
-	case "enable"
-	{
-	    die "$help_enable\n" if !$param->{source};
-	    check_target($param->{source});
-	    enable_job($param);
-	}
-	case "disable"
-	{
-	    die "$help_disable\n" if !$param->{source};
-	    check_target($param->{source});
-	    disable_job($param);
-	}
+
+    } elsif ($command eq 'enable') {
+	die "$help_enable\n" if !$param->{source};
+
+	check_target($param->{source});
+	enable_job($param);
+
+    } elsif ($command eq 'disable') {
+	die "$help_disable\n" if !$param->{source};
+
+	check_target($param->{source});
+	disable_job($param);
+
     }
 
     sub usage {
