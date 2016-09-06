@@ -1,3 +1,13 @@
+pve-zsync (1.6-12) unstable; urgency=medium
+
+  * Remove switch module
+
+  * Add ssh BatchMode
+
+  * Add signal handling when we sync
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 06 Sep 2016 08:13:13 +0200
+
 pve-zsync (1.6-11) unstable; urgency=medium
 
   * fix use path as source
