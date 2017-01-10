@@ -636,7 +636,7 @@ sub snapshot_get{
 
     while ($raw && $raw =~ s/^(.*?)(\n|$)//) {
 	$line = $1;
-	if ($line =~ m/(rep_$name.*)$/) {
+	if ($line =~ m/(rep_\Q${name}\E_\d{4}-\d{2}-\d{2}_\d{2}:\d{2}:\d{2})$/) {
 
 	    $last_snap = $1 if (!$last_snap);
 	    $old_snap = $1;
