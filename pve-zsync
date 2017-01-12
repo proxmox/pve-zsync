@@ -70,21 +70,33 @@ sub check_bin {
 }
 
 sub cut_target_width {
-    my ($target, $max) = @_;
+    my ($path, $maxlen) = @_;
+    $path =~ s@/+@/@g;
 
-    return  $target if (length($target) <= $max);
-    my @spl = split('/', $target);
+    return $path if length($path) <= $maxlen;
 
-    my $count = length($spl[@spl-1]);
-    return "..\/".substr($spl[@spl-1],($count-$max)+3 , $count) if $count > $max;
+    return '..'.substr($path, -$maxlen+2) if $path !~ m@/@;
 
-    $count +=  length($spl[0]) if @spl > 1;
-    return substr($spl[0], 0, $max-4-length($spl[@spl-1]))."\/..\/".$spl[@spl-1] if $count > $max;
+    $path =~ s@/([^/]+/?)$@@;
+    my $tail = $1;
 
-    my $rest = 1;
-    $rest = $max-$count if ($max-$count > 0);
+    if (length($tail)+3 == $maxlen) {
+	return "../$tail";
+    } elsif (length($tail)+2 >= $maxlen) {
+	return '..'.substr($tail, -$maxlen+2)
+    }
 
-    return "$spl[0]".substr($target, length($spl[0]), $rest)."..\/".$spl[@spl-1];
+    $path =~ s@(/[^/]+)(?:/|$)@@;
+    my $head = $1;
+    my $both = length($head) + length($tail);
+    my $remaining = $maxlen-$both-4; # -4 for "/../"
+
+    if ($remaining < 0) {
+	return substr($head, 0, $maxlen - length($tail) - 3) . "../$tail"; # -3 for "../"
+    }
+
+    substr($path, ($remaining/2), (length($path)-$remaining), '..');
+    return "$head/" . $path . "/$tail";
 }
 
 sub lock {
