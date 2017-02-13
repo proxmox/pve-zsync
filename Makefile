@@ -55,6 +55,7 @@ ${DEB}:
 	echo "git clone git://git.proxmox.com/git/pve-storage.git\\ngit checkout ${GITVERSION}" > debian/${DOCDIR}/SOURCE
 	fakeroot dpkg-deb --build debian
 	mv debian.deb ${DEB}
+	lintian ${DEB}
 	rm -rf debian
 
 .PHONY: clean
