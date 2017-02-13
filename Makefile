@@ -40,8 +40,9 @@ install: pve-zsync.8.man pve-zsync.8.gz
 	install -d ${DESTDIR}${PODDIR}
 	install -m 0644 pve-zsync.8.gz ${DESTDIR}/usr/share/man/man8/
 
-.PHONY: deb ${DEB}
-deb ${DEB}:
+.PHONY: deb
+deb: ${DEB}
+${DEB}:
 	rm -rf debian
 	mkdir debian
 	install -d debian/var/lib/pve-zsync
