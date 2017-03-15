@@ -508,7 +508,7 @@ sub init {
     die "Config already exists\n" if $cfg->{$job->{source}}->{$job->{name}};
 
     #check if vm has zfs disks if not die;
-    get_disks($source, 1) if $source->{vmid};
+    get_disks($source) if $source->{vmid};
 
     update_cron($job);
     update_state($job);
@@ -724,7 +724,7 @@ sub write_cron {
 }
 
 sub get_disks {
-    my ($target, $get_err) = @_;
+    my ($target) = @_;
 
     my $cmd = [];
     push @$cmd, 'ssh', "root\@$target->{ip}", '--', if $target->{ip};
@@ -739,7 +739,7 @@ sub get_disks {
 
     my $res = run_cmd($cmd);
 
-    my $disks = parse_disks($res, $target->{ip}, $target->{vm_type}, $get_err);
+    my $disks = parse_disks($res, $target->{ip}, $target->{vm_type});
 
     return $disks;
 }
@@ -762,14 +762,13 @@ sub run_cmd {
 }
 
 sub parse_disks {
-    my ($text, $ip, $vm_type, $get_err) = @_;
+    my ($text, $ip, $vm_type) = @_;
 
     my $disks;
 
     my $num = 0;
     while ($text && $text =~ s/^(.*?)(\n|$)//) {
 	my $line = $1;
-	my $error = $vm_type eq 'qemu' ? 1 : 0 ;
 
 	next if $line =~ /cdrom|none/;
 	next if $line !~ m/^(?:((?:virtio|ide|scsi|sata|mp)\d+)|rootfs): /;
@@ -792,9 +791,12 @@ sub parse_disks {
 		    last;
 		}
 	    }
-
+	    if (!defined($disk) || !defined($stor)) {
+		print "Disk: \"$line\" has no valid zfs dataset format and will not include in pve-sync\n";
+		next;
+	    }
 	} else {
-	    print "Disk: \"$line\" will not include in pve-sync\n" if $get_err || $error;
+	    print "Disk: \"$line\" has no valid zfs dataset format and will not include in pve-sync\n";
 	    next;
 	}
 
