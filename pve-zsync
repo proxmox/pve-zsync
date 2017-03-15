@@ -775,7 +775,7 @@ sub parse_disks {
 	next if $line !~ m/^(?:((?:virtio|ide|scsi|sata|mp)\d+)|rootfs): /;
 
 	#QEMU if backup is not set include in  sync
-	next if $vm_type eq 'qemu && ($line =~ m/backup=(?i:0|no|off|false)/)';
+	next if $vm_type eq 'qemu' && ($line =~ m/backup=(?i:0|no|off|false)/);
 
 	#LXC if backup is not set do no in sync
 	$error = ($line =~ m/backup=(?i:1|yes|on|true)/) if $vm_type eq 'lxc';
