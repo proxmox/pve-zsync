@@ -778,7 +778,7 @@ sub parse_disks {
 	next if $vm_type eq 'qemu' && ($line =~ m/backup=(?i:0|no|off|false)/);
 
 	#LXC if backup is not set do no in sync
-	$error = ($line =~ m/backup=(?i:1|yes|on|true)/) if $vm_type eq 'lxc';
+	next if $vm_type eq 'lxc' && ($line =~ m/^mp\d:/) && ($line !~ m/backup=(?i:1|yes|on|true)/);
 
 	my $disk = undef;
 	my $stor = undef;
