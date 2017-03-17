@@ -791,12 +791,9 @@ sub parse_disks {
 		    last;
 		}
 	    }
-	    if (!defined($disk) || !defined($stor)) {
-		print "Disk: \"$line\" has no valid zfs dataset format and will not include in pve-sync\n";
-		next;
-	    }
-	} else {
-	    print "Disk: \"$line\" has no valid zfs dataset format and will not include in pve-sync\n";
+	}
+	if (!defined($disk) || !defined($stor)) {
+	    print "Disk: \"$line\" has no valid zfs dataset format and will be skipped\n";
 	    next;
 	}
 
