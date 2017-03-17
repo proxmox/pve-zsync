@@ -1,3 +1,11 @@
+pve-zsync (1.6-14) unstable; urgency=medium
+
+  * fix #1301: skip container mount points without explicit backup option
+
+  * improved some error handling
+
+ -- Proxmox Support Team <support@proxmox.com>  Fri, 17 Mar 2017 15:41:24 +0100
+
 pve-zsync (1.6-13) unstable; urgency=medium
 
   * fix #1245: inexact snapshot name parsing
@@ -99,4 +107,4 @@ pve-zsync (1.5-2) unstable; urgency=low
 
   * initial package
 
- -- Proxmox Support Team <support@proxmox.com>  So, 8 Mar 2015 18:34:19 +0100
+ -- Proxmox Support Team <support@proxmox.com>  Sun, 08 Mar 2015 18:34:19 +0100
