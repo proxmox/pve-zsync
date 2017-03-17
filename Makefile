@@ -60,7 +60,7 @@ ${DEB}:
 
 .PHONY: clean
 clean:
-	rm -rf debian *.deb ${PACKAGE}-*.tar.gz dist *.8.man *.8.gz
+	rm -rf debian *.deb ${PACKAGE}-*.tar.gz dist *.8.man *.8.gz *.buildinfo
 	find . -name '*~' -exec rm {} ';'
 
 .PHONY: distclean
