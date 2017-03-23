@@ -770,7 +770,7 @@ sub parse_disks {
     while ($text && $text =~ s/^(.*?)(\n|$)//) {
 	my $line = $1;
 
-	next if $line =~ /cdrom|none/;
+	next if $line =~ /media=cdrom/;
 	next if $line !~ m/^(?:((?:virtio|ide|scsi|sata|mp)\d+)|rootfs): /;
 
 	#QEMU if backup is not set include in  sync
