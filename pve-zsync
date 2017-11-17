@@ -860,7 +860,8 @@ sub snapshot_destroy {
     if ($dest) {
 	my @ssh = $dest->{ip} ? ('ssh', "root\@$dest->{ip}", '--') : ();
 
-	my $path = "$dest->{all}\/$source->{last_part}";
+	my $path = "$dest->{all}";
+	$path .= "/$source->{last_part}" if $source->{last_part};
 
 	eval {
 	    run_cmd([@ssh, @zfscmd, "$path\@$snap"]);
@@ -877,7 +878,13 @@ sub snapshot_exist {
     my $cmd = [];
     push @$cmd, 'ssh', "root\@$dest->{ip}", '--' if $dest->{ip};
     push @$cmd, 'zfs', 'list', '-rt', 'snapshot', '-Ho', 'name';
-    push @$cmd, "$dest->{all}/$source->{last_part}\@$source->{old_snap}";
+
+    my $path = $dest->{all};
+    $path .= "/$source->{last_part}" if $source->{last_part};
+    $path .= "\@$source->{old_snap}";
+
+    push @$cmd, $path;
+
 
     my $text = "";
     eval {$text =run_cmd($cmd);};
@@ -910,7 +917,8 @@ sub send_image {
 	my $bwl = $param->{limit}*1024;
 	push @$cmd, \'|', 'cstream', '-t', $bwl;
     }
-    my $target = "$dest->{all}/$source->{last_part}";
+    my $target = "$dest->{all}";
+    $target .= "/$source->{last_part}" if $source->{last_part};
     $target =~ s!/+!/!g;
 
     push @$cmd, \'|';
