@@ -914,117 +914,117 @@ sub send_image {
     $target =~ s!/+!/!g;
 
     push @$cmd, \'|';
-	push @$cmd, 'ssh', '-o', 'BatchMode=yes', "root\@$dest->{ip}", '--' if $dest->{ip};
-	push @$cmd, 'zfs', 'recv', '-F', '--';
-	push @$cmd, "$target";
+    push @$cmd, 'ssh', '-o', 'BatchMode=yes', "root\@$dest->{ip}", '--' if $dest->{ip};
+    push @$cmd, 'zfs', 'recv', '-F', '--';
+    push @$cmd, "$target";
 
-	eval {
-	    run_cmd($cmd)
-	};
+    eval {
+	run_cmd($cmd)
+    };
 
-	if (my $erro = $@) {
-	    snapshot_destroy($source, undef, $param->{method}, $source->{new_snap});
-	    die $erro;
-	};
-    }
+    if (my $erro = $@) {
+	snapshot_destroy($source, undef, $param->{method}, $source->{new_snap});
+	die $erro;
+    };
+}
 
 
-    sub send_config{
-	my ($source, $dest, $method) = @_;
+sub send_config{
+    my ($source, $dest, $method) = @_;
 
-	my $source_target = $source->{vm_type} eq 'qemu' ? "$QEMU_CONF/$source->{vmid}.conf": "$LXC_CONF/$source->{vmid}.conf";
-	my $dest_target_new ="$source->{vmid}.conf.$source->{vm_type}.$source->{new_snap}";
+    my $source_target = $source->{vm_type} eq 'qemu' ? "$QEMU_CONF/$source->{vmid}.conf": "$LXC_CONF/$source->{vmid}.conf";
+    my $dest_target_new ="$source->{vmid}.conf.$source->{vm_type}.$source->{new_snap}";
 
-	my $config_dir = $dest->{last_part} ?  "${CONFIG_PATH}/$dest->{last_part}" : $CONFIG_PATH;
+    my $config_dir = $dest->{last_part} ?  "${CONFIG_PATH}/$dest->{last_part}" : $CONFIG_PATH;
 
-	$dest_target_new = $config_dir.'/'.$dest_target_new;
+    $dest_target_new = $config_dir.'/'.$dest_target_new;
 
-	if ($method eq 'ssh'){
-	    if ($dest->{ip} && $source->{ip}) {
-		run_cmd(['ssh', "root\@$dest->{ip}", '--', 'mkdir', '-p', '--', $config_dir]);
-		run_cmd(['scp', '--', "root\@[$source->{ip}]:$source_target", "root\@[$dest->{ip}]:$dest_target_new"]);
-	    } elsif ($dest->{ip}) {
-		run_cmd(['ssh', "root\@$dest->{ip}", '--', 'mkdir', '-p', '--', $config_dir]);
-		run_cmd(['scp', '--', $source_target, "root\@[$dest->{ip}]:$dest_target_new"]);
-	    } elsif ($source->{ip}) {
-		run_cmd(['mkdir', '-p', '--', $config_dir]);
-		run_cmd(['scp', '--', "root\@[$source->{ip}]:$source_target", $dest_target_new]);
-	    }
-
-	    if ($source->{destroy}){
-		my $dest_target_old ="${config_dir}/$source->{vmid}.conf.$source->{vm_type}.$source->{old_snap}";
-		if($dest->{ip}){
-		    run_cmd(['ssh', "root\@$dest->{ip}", '--', 'rm', '-f', '--', $dest_target_old]);
-		} else {
-		    run_cmd(['rm', '-f', '--', $dest_target_old]);
-		}
-	    }
-	} elsif ($method eq 'local') {
+    if ($method eq 'ssh'){
+	if ($dest->{ip} && $source->{ip}) {
+	    run_cmd(['ssh', "root\@$dest->{ip}", '--', 'mkdir', '-p', '--', $config_dir]);
+	    run_cmd(['scp', '--', "root\@[$source->{ip}]:$source_target", "root\@[$dest->{ip}]:$dest_target_new"]);
+	} elsif ($dest->{ip}) {
+	    run_cmd(['ssh', "root\@$dest->{ip}", '--', 'mkdir', '-p', '--', $config_dir]);
+	    run_cmd(['scp', '--', $source_target, "root\@[$dest->{ip}]:$dest_target_new"]);
+	} elsif ($source->{ip}) {
 	    run_cmd(['mkdir', '-p', '--', $config_dir]);
-	    run_cmd(['cp', $source_target, $dest_target_new]);
+	    run_cmd(['scp', '--', "root\@[$source->{ip}]:$source_target", $dest_target_new]);
 	}
-    }
 
-    sub get_date {
-	my ($sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst) = localtime(time);
-	my $datestamp = sprintf ("%04d-%02d-%02d_%02d:%02d:%02d", $year+1900, $mon+1, $mday, $hour, $min, $sec);
-
-	return $datestamp;
-    }
-
-    sub status {
-	my $cfg = read_cron();
-
-	my $status_list = sprintf("%-25s%-25s%-10s\n", "SOURCE", "NAME", "STATUS");
-
-	my $states = read_state();
-
-	foreach my $source (sort keys%{$cfg}) {
-	    foreach my $sync_name (sort keys%{$cfg->{$source}}) {
-		$status_list .= sprintf("%-25s", cut_target_width($source, 25));
-		$status_list .= sprintf("%-25s", cut_target_width($sync_name, 25));
-		$status_list .= "$states->{$source}->{$sync_name}->{state}\n";
+	if ($source->{destroy}){
+	    my $dest_target_old ="${config_dir}/$source->{vmid}.conf.$source->{vm_type}.$source->{old_snap}";
+	    if($dest->{ip}){
+		run_cmd(['ssh', "root\@$dest->{ip}", '--', 'rm', '-f', '--', $dest_target_old]);
+	    } else {
+		run_cmd(['rm', '-f', '--', $dest_target_old]);
 	    }
 	}
+    } elsif ($method eq 'local') {
+	run_cmd(['mkdir', '-p', '--', $config_dir]);
+	run_cmd(['cp', $source_target, $dest_target_new]);
+    }
+}
 
-	return $status_list;
+sub get_date {
+    my ($sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst) = localtime(time);
+    my $datestamp = sprintf ("%04d-%02d-%02d_%02d:%02d:%02d", $year+1900, $mon+1, $mday, $hour, $min, $sec);
+
+    return $datestamp;
+}
+
+sub status {
+    my $cfg = read_cron();
+
+    my $status_list = sprintf("%-25s%-25s%-10s\n", "SOURCE", "NAME", "STATUS");
+
+    my $states = read_state();
+
+    foreach my $source (sort keys%{$cfg}) {
+	foreach my $sync_name (sort keys%{$cfg->{$source}}) {
+	    $status_list .= sprintf("%-25s", cut_target_width($source, 25));
+	    $status_list .= sprintf("%-25s", cut_target_width($sync_name, 25));
+	    $status_list .= "$states->{$source}->{$sync_name}->{state}\n";
+	}
     }
 
-    sub enable_job {
-	my ($param) = @_;
+    return $status_list;
+}
 
-	my $job = get_job($param);
-	$job->{state} = "ok";
-	update_state($job);
-	update_cron($job);
-    }
+sub enable_job {
+    my ($param) = @_;
 
-    sub disable_job {
-	my ($param) = @_;
+    my $job = get_job($param);
+    $job->{state} = "ok";
+    update_state($job);
+    update_cron($job);
+}
 
-	my $job = get_job($param);
-	$job->{state} = "stopped";
-	update_state($job);
-	update_cron($job);
-    }
+sub disable_job {
+    my ($param) = @_;
 
-    my $command = $ARGV[0];
+    my $job = get_job($param);
+    $job->{state} = "stopped";
+    update_state($job);
+    update_cron($job);
+}
 
-    my $commands = {'destroy' => 1,
-		    'create' => 1,
-		    'sync' => 1,
-		    'list' => 1,
-		    'status' => 1,
-		    'help' => 1,
-		    'enable' => 1,
-		    'disable' => 1};
+my $command = $ARGV[0];
 
-    if (!$command || !$commands->{$command}) {
-	usage();
-	die "\n";
-    }
+my $commands = {'destroy' => 1,
+		'create' => 1,
+		'sync' => 1,
+		'list' => 1,
+		'status' => 1,
+		'help' => 1,
+		'enable' => 1,
+		'disable' => 1};
 
-    my $help_sync = <<EOF;
+if (!$command || !$commands->{$command}) {
+    usage();
+    die "\n";
+}
+
+my $help_sync = <<EOF;
 $PROGNAME sync -dest <string> -source <string> [OPTIONS]\n
 
 	will sync one time
@@ -1055,7 +1055,7 @@ $PROGNAME sync -dest <string> -source <string> [OPTIONS]\n
 		print out the sync progress.
 EOF
 
-    my $help_create = <<EOF;
+my $help_create = <<EOF;
 $PROGNAME create -dest <string> -source <string> [OPTIONS]
 
         Create a sync Job
@@ -1085,7 +1085,7 @@ $PROGNAME create -dest <string> -source <string> [OPTIONS]
 		the source can be an <VMID> or [IP:]<ZFSPool>[/Path]
 EOF
 
-    my $help_destroy = <<EOF;
+my $help_destroy = <<EOF;
 $PROGNAME destroy -source <string> [OPTIONS]
 
         remove a sync Job from the scheduler
@@ -1099,7 +1099,7 @@ $PROGNAME destroy -source <string> [OPTIONS]
                 the source can be an  <VMID> or [IP:]<ZFSPool>[/Path]
 EOF
 
-    my $help_help = <<EOF;
+my $help_help = <<EOF;
 $PROGNAME help <cmd> [OPTIONS]
 
 	Get help about specified command.
@@ -1113,19 +1113,19 @@ $PROGNAME help <cmd> [OPTIONS]
 		Verbose output format.
 EOF
 
-    my $help_list = <<EOF;
+my $help_list = <<EOF;
 $PROGNAME list
 
 	Get a List of all scheduled Sync Jobs
 EOF
 
-    my $help_status = <<EOF;
+my $help_status = <<EOF;
 $PROGNAME status
 
 	Get the status of all scheduled Sync Jobs
 EOF
 
-    my $help_enable = <<EOF;
+my $help_enable = <<EOF;
 $PROGNAME enable -source <string> [OPTIONS]
 
         enable a syncjob and reset error
@@ -1139,7 +1139,7 @@ $PROGNAME enable -source <string> [OPTIONS]
                 the source can be an  <VMID> or [IP:]<ZFSPool>[/Path]
 EOF
 
-    my $help_disable = <<EOF;
+my $help_disable = <<EOF;
 $PROGNAME disable -source <string> [OPTIONS]
 
         pause a sync job
@@ -1153,114 +1153,114 @@ $PROGNAME disable -source <string> [OPTIONS]
                 the source can be an  <VMID> or [IP:]<ZFSPool>[/Path] 
 EOF
 
-    sub help {
-	my ($command) = @_;
+sub help {
+    my ($command) = @_;
 
-	if ($command eq 'help') {
-	    die "$help_help\n";
-
-	} elsif ($command eq 'sync') {
-	    die "$help_sync\n";
-
-	} elsif ($command eq 'destroy') {
-	    die "$help_destroy\n";
-
-	} elsif ($command eq 'create') {
-	    die "$help_create\n";
-
-	} elsif ($command eq 'list') {
-	    die "$help_list\n";
-
-	} elsif ($command eq 'status') {
-	    die "$help_status\n";
-
-	} elsif ($command eq 'enable') {
-	    die "$help_enable\n";
-
-	} elsif ($command eq 'disable') {
-	    die "$help_disable\n";
-
-	}
-
-    }
-
-    my @arg = @ARGV;
-    my $param = parse_argv(@arg);
-
-    if ($command eq 'destroy') {
-	die "$help_destroy\n" if !$param->{source};
-
-	check_target($param->{source});
-	destroy_job($param);
+    if ($command eq 'help') {
+	die "$help_help\n";
 
     } elsif ($command eq 'sync') {
-	die "$help_sync\n" if !$param->{source} || !$param->{dest};
+	die "$help_sync\n";
 
-	check_target($param->{source});
-	check_target($param->{dest});
-	sync($param);
+    } elsif ($command eq 'destroy') {
+	die "$help_destroy\n";
 
     } elsif ($command eq 'create') {
-	die "$help_create\n" if !$param->{source} || !$param->{dest};
-
-	check_target($param->{source});
-	check_target($param->{dest});
-	init($param);
-
-    } elsif ($command eq 'status') {
-	print status();
+	die "$help_create\n";
 
     } elsif ($command eq 'list') {
-	print list();
+	die "$help_list\n";
 
-    } elsif ($command eq 'help') {
-	my $help_command = $ARGV[1];
-
-	if ($help_command && $commands->{$help_command}) {
-	    print help($help_command);
-
-	}
-	if ($param->{verbose} == 1){
-	    exec("man $PROGNAME");
-
-	} else {
-	    usage(1);
-
-	}
+    } elsif ($command eq 'status') {
+	die "$help_status\n";
 
     } elsif ($command eq 'enable') {
-	die "$help_enable\n" if !$param->{source};
-
-	check_target($param->{source});
-	enable_job($param);
+	die "$help_enable\n";
 
     } elsif ($command eq 'disable') {
-	die "$help_disable\n" if !$param->{source};
-
-	check_target($param->{source});
-	disable_job($param);
+	die "$help_disable\n";
 
     }
 
-    sub usage {
-	my ($help) = @_;
+}
 
-	print("ERROR:\tno command specified\n") if !$help;
-	print("USAGE:\t$PROGNAME <COMMAND> [ARGS] [OPTIONS]\n");
-	print("\t$PROGNAME help [<cmd>] [OPTIONS]\n\n");
-	print("\t$PROGNAME create -dest <string> -source <string> [OPTIONS]\n");
-	print("\t$PROGNAME destroy -source <string> [OPTIONS]\n");
-	print("\t$PROGNAME disable -source <string> [OPTIONS]\n");
-	print("\t$PROGNAME enable -source <string> [OPTIONS]\n");
-	print("\t$PROGNAME list\n");
-	print("\t$PROGNAME status\n");
-	print("\t$PROGNAME sync -dest <string> -source <string> [OPTIONS]\n");
+my @arg = @ARGV;
+my $param = parse_argv(@arg);
+
+if ($command eq 'destroy') {
+    die "$help_destroy\n" if !$param->{source};
+
+    check_target($param->{source});
+    destroy_job($param);
+
+} elsif ($command eq 'sync') {
+    die "$help_sync\n" if !$param->{source} || !$param->{dest};
+
+    check_target($param->{source});
+    check_target($param->{dest});
+    sync($param);
+
+} elsif ($command eq 'create') {
+    die "$help_create\n" if !$param->{source} || !$param->{dest};
+
+    check_target($param->{source});
+    check_target($param->{dest});
+    init($param);
+
+} elsif ($command eq 'status') {
+    print status();
+
+} elsif ($command eq 'list') {
+    print list();
+
+} elsif ($command eq 'help') {
+    my $help_command = $ARGV[1];
+
+    if ($help_command && $commands->{$help_command}) {
+	print help($help_command);
+
+    }
+    if ($param->{verbose} == 1){
+	exec("man $PROGNAME");
+
+    } else {
+	usage(1);
+
     }
 
-    sub check_target {
-	my ($target) = @_;
-	parse_target($target);
-    }
+} elsif ($command eq 'enable') {
+    die "$help_enable\n" if !$param->{source};
+
+    check_target($param->{source});
+    enable_job($param);
+
+} elsif ($command eq 'disable') {
+    die "$help_disable\n" if !$param->{source};
+
+    check_target($param->{source});
+    disable_job($param);
+
+}
+
+sub usage {
+    my ($help) = @_;
+
+    print("ERROR:\tno command specified\n") if !$help;
+    print("USAGE:\t$PROGNAME <COMMAND> [ARGS] [OPTIONS]\n");
+    print("\t$PROGNAME help [<cmd>] [OPTIONS]\n\n");
+    print("\t$PROGNAME create -dest <string> -source <string> [OPTIONS]\n");
+    print("\t$PROGNAME destroy -source <string> [OPTIONS]\n");
+    print("\t$PROGNAME disable -source <string> [OPTIONS]\n");
+    print("\t$PROGNAME enable -source <string> [OPTIONS]\n");
+    print("\t$PROGNAME list\n");
+    print("\t$PROGNAME status\n");
+    print("\t$PROGNAME sync -dest <string> -source <string> [OPTIONS]\n");
+}
+
+sub check_target {
+    my ($target) = @_;
+    parse_target($target);
+}
 
 __END__
 
