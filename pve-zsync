@@ -1024,70 +1024,126 @@ sub send_image {
 	die "\n";
     }
 
-    my $help_sync = "$PROGNAME sync -dest <string> -source <string> [OPTIONS]\n
-\twill sync one time\n
-\t-dest\tstring\n
-\t\tthe destination target is like [IP:]<Pool>[/Path]\n
-\t-limit\tinteger\n
-\t\tmax sync speed in kBytes/s, default unlimited\n
-\t-maxsnap\tinteger\n
-\t\thow much snapshots will be kept before get erased, default 1/n
-\t-name\tstring\n
-\t\tname of the sync job, if not set it is default.
-\tIt is only necessary if scheduler allready contains this source.\n
-\t-source\tstring\n
-\t\tthe source can be an <VMID> or [IP:]<ZFSPool>[/Path]\n
-\t-verbose   boolean\n
-\t\tprint out the sync progress.\n;"
+    my $help_sync = << EOF$PROGNAME sync -dest <string> -source <string> [OPTIONS]\n
 
-    my $help_create = "$PROGNAME create -dest <string> -source <string> [OPTIONS]/n
-\tCreate a sync Job\n
-\t-dest\tstring\n
-\t\tthe destination target is like [IP]:<Pool>[/Path]\n
-\t-limit\tinteger\n
-\t\tmax sync speed in kBytes/s, default unlimited\n
-\t-maxsnap\tstring\n
-\t\thow much snapshots will be kept before get erased, default 1\n
-\t-name\tstring\n
-\t\tname of the sync job, if not set it is default\n
-\t-skip\tboolean\n
-\t\tif this flag is set it will skip the first sync\n
-\t-source\tstring\n
-\t\tthe source can be an <VMID> or [IP:]<ZFSPool>[/Path]\n";
+	will sync one time
 
-    my $help_destroy = "$PROGNAME destroy -source <string> [OPTIONS]\n
-\tremove a sync Job from the scheduler\n
-\t-name\tstring\n
-\t\tname of the sync job, if not set it is default\n
-\t-source\tstring\n
-\t\tthe source can be an  <VMID> or [IP:]<ZFSPool>[/Path]\n";
+        -dest      string
 
-    my $help_help = "$PROGNAME help <cmd> [OPTIONS]\n
-\tGet help about specified command.\n
-\t<cmd>\tstring\n
-\t\tCommand name\n
-\t-verbose\tboolean\n
-\t\tVerbose output format.\n";
+		the destination target is like [IP:]<Pool>[/Path]
 
-    my $help_list = "$PROGNAME list\n
-\tGet a List of all scheduled Sync Jobs\n";
+	-limit     integer
 
-    my $help_status = "$PROGNAME status\n
-\tGet the status of all scheduled Sync Jobs\n";
+		max sync speed in kBytes/s, default unlimited
 
-    my $help_enable = "$PROGNAME enable -source <string> [OPTIONS]\n
-\tenable a syncjob and reset error\n
-\t-name\tstring\n
-\t\tname of the sync job, if not set it is default\n
-\t-source\tstring\n
-\t\tthe source can be an  <VMID> or [IP:]<ZFSPool>[/Path]\n";
+        -maxsnap   integer
 
-    my $help_disable = "$PROGNAME disable -source <string> [OPTIONS]\n
-\tpause a syncjob\n
-\t-name\tstring\n
-\t\tname of the sync job, if not set it is default\n
-\t-source\tstring\n
-\t\tthe source can be an  <VMID> or [IP:]<ZFSPool>[/Path]\n";
+		how much snapshots will be kept before get erased, default 1
+
+        -name      string
+
+		name of the sync job, if not set it is default.
+		It is only necessary if scheduler allready contains this source.
+
+        -source    string
+
+		the source can be an <VMID> or [IP:]<ZFSPool>[/Path]
+
+	-verbose   boolean
+
+		print out the sync progress.
+EOF
+
+    my $help_create = << EOF$PROGNAME create -dest <string> -source <string> [OPTIONS]
+
+        Create a sync Job
+
+        -dest      string
+
+		the destination target is like [IP]:<Pool>[/Path]
+
+        -limit     integer
+
+		max sync speed in kBytes/s, default unlimited
+
+        -maxsnap   string
+
+		how much snapshots will be kept before get erased, default 1
+
+        -name      string
+
+		name of the sync job, if not set it is default
+
+        -skip      boolean
+
+		if this flag is set it will skip the first sync
+
+        -source    string
+
+		the source can be an <VMID> or [IP:]<ZFSPool>[/Path]
+EOF
+
+    my $help_destroy = << EOF$PROGNAME destroy -source <string> [OPTIONS]
+
+        remove a sync Job from the scheduler
+
+        -name      string
+
+		name of the sync job, if not set it is default
+
+        -source    string
+
+                the source can be an  <VMID> or [IP:]<ZFSPool>[/Path]
+EOF
+
+    my $help_help = << EOF$PROGNAME help <cmd> [OPTIONS]
+
+	Get help about specified command.
+
+        <cmd>      string
+
+		Command name
+
+	-verbose   boolean
+
+		Verbose output format.
+EOF
+
+    my $help_list = << EOF$PROGNAME list
+
+	Get a List of all scheduled Sync Jobs
+EOF
+
+    my $help_status = << EOF$PROGNAME status
+
+	Get the status of all scheduled Sync Jobs
+EOF
+
+    my $help_enable = << EOF$PROGNAME enable -source <string> [OPTIONS]
+
+        enable a syncjob and reset error
+
+        -name      string
+
+		name of the sync job, if not set it is default
+
+        -source    string
+
+                the source can be an  <VMID> or [IP:]<ZFSPool>[/Path]
+EOF
+
+    my $help_disable = << EOF$PROGNAME disable -source <string> [OPTIONS]
+
+        pause a sync job
+
+        -name      string
+
+		name of the sync job, if not set it is default
+
+        -source    string
+
+                the source can be an  <VMID> or [IP:]<ZFSPool>[/Path] 
+EOF
 
     sub help {
 	my ($command) = @_;
