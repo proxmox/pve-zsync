@@ -1024,7 +1024,8 @@ sub send_image {
 	die "\n";
     }
 
-    my $help_sync = << EOF$PROGNAME sync -dest <string> -source <string> [OPTIONS]\n
+    my $help_sync = <<EOF;
+$PROGNAME sync -dest <string> -source <string> [OPTIONS]\n
 
 	will sync one time
 
@@ -1054,7 +1055,8 @@ sub send_image {
 		print out the sync progress.
 EOF
 
-    my $help_create = << EOF$PROGNAME create -dest <string> -source <string> [OPTIONS]
+    my $help_create = <<EOF;
+$PROGNAME create -dest <string> -source <string> [OPTIONS]
 
         Create a sync Job
 
@@ -1083,7 +1085,8 @@ EOF
 		the source can be an <VMID> or [IP:]<ZFSPool>[/Path]
 EOF
 
-    my $help_destroy = << EOF$PROGNAME destroy -source <string> [OPTIONS]
+    my $help_destroy = <<EOF;
+$PROGNAME destroy -source <string> [OPTIONS]
 
         remove a sync Job from the scheduler
 
@@ -1096,7 +1099,8 @@ EOF
                 the source can be an  <VMID> or [IP:]<ZFSPool>[/Path]
 EOF
 
-    my $help_help = << EOF$PROGNAME help <cmd> [OPTIONS]
+    my $help_help = <<EOF;
+$PROGNAME help <cmd> [OPTIONS]
 
 	Get help about specified command.
 
@@ -1109,17 +1113,20 @@ EOF
 		Verbose output format.
 EOF
 
-    my $help_list = << EOF$PROGNAME list
+    my $help_list = <<EOF;
+$PROGNAME list
 
 	Get a List of all scheduled Sync Jobs
 EOF
 
-    my $help_status = << EOF$PROGNAME status
+    my $help_status = <<EOF;
+$PROGNAME status
 
 	Get the status of all scheduled Sync Jobs
 EOF
 
-    my $help_enable = << EOF$PROGNAME enable -source <string> [OPTIONS]
+    my $help_enable = <<EOF;
+$PROGNAME enable -source <string> [OPTIONS]
 
         enable a syncjob and reset error
 
@@ -1132,7 +1139,8 @@ EOF
                 the source can be an  <VMID> or [IP:]<ZFSPool>[/Path]
 EOF
 
-    my $help_disable = << EOF$PROGNAME disable -source <string> [OPTIONS]
+    my $help_disable = <<EOF;
+$PROGNAME disable -source <string> [OPTIONS]
 
         pause a sync job
 
