@@ -1025,7 +1025,9 @@ my $commands = {'destroy' => 1,
 		'status' => 1,
 		'help' => 1,
 		'enable' => 1,
-		'disable' => 1};
+		'disable' => 1,
+		'printpod' => 1,
+};
 
 if (!$command || !$commands->{$command}) {
     usage();
@@ -1248,6 +1250,8 @@ if ($command eq 'destroy') {
     check_target($param->{source});
     disable_job($param);
 
+} elsif ($command eq 'printpod') {
+    print_pod();
 }
 
 sub usage {
@@ -1270,8 +1274,8 @@ sub check_target {
     parse_target($target);
 }
 
-__END__
-
+sub print_pod {
+    print <<EOF;
 =head1 NAME
 
 pve-zsync - PVE ZFS Replication Manager
@@ -1280,117 +1284,21 @@ pve-zsync - PVE ZFS Replication Manager
 
 pve-zsync <COMMAND> [ARGS] [OPTIONS]
 
-pve-zsync help <cmd> [OPTIONS]
+$help_help
 
-	Get help about specified command.
+$help_create
 
-        <cmd>      string
+$help_destroy
 
-		Command name
+$help_disable
 
-	-verbose   boolean
+$help_enable
 
-		Verbose output format.
+$help_list
 
-pve-zsync create -dest <string> -source <string> [OPTIONS]
+$help_status
 
-        Create a sync Job
-
-        -dest      string
-
-		the destination target is like [IP]:<Pool>[/Path]
-
-        -limit     integer
-
-		max sync speed in kBytes/s, default unlimited
-
-        -maxsnap   string
-
-		how much snapshots will be kept before get erased, default 1
-
-        -name      string
-
-		name of the sync job, if not set it is default
-
-        -skip      boolean
-
-		if this flag is set it will skip the first sync
-
-        -source    string
-
-		the source can be an <VMID> or [IP:]<ZFSPool>[/Path]
-
-pve-zsync destroy -source <string> [OPTIONS]
-
-        remove a sync Job from the scheduler
-
-        -name      string
-
-		name of the sync job, if not set it is default
-
-        -source    string
-
-                the source can be an  <VMID> or [IP:]<ZFSPool>[/Path]
-
-pve-zsync disable -source <string> [OPTIONS]
-
-        pause a sync job
-
-        -name      string
-
-		name of the sync job, if not set it is default
-
-        -source    string
-
-                the source can be an  <VMID> or [IP:]<ZFSPool>[/Path]
-
-pve-zsync enable -source <string> [OPTIONS]
-
-        enable a syncjob and reset error
-
-        -name      string
-
-		name of the sync job, if not set it is default
-
-        -source    string
-
-                the source can be an  <VMID> or [IP:]<ZFSPool>[/Path]
-pve-zsync list
-
-	Get a List of all scheduled Sync Jobs
-
-pve-zsync status
-
-	Get the status of all scheduled Sync Jobs
-
-pve-zsync sync -dest <string> -source <string> [OPTIONS]
-
-	will sync one time
-
-        -dest      string
-
-		the destination target is like [IP:]<Pool>[/Path]
-
-	-limit     integer
-
-		max sync speed in kBytes/s, default unlimited
-
-        -maxsnap   integer
-
-		how much snapshots will be kept before get erased, default 1
-
-        -name      string
-
-		name of the sync job, if not set it is default.
-		It is only necessary if scheduler allready contains this source.
-
-        -source    string
-
-		the source can be an <VMID> or [IP:]<ZFSPool>[/Path]
-
-	-verbose   boolean
-
-		print out the sync progress.
+$help_sync
 
 =head1 DESCRIPTION
 
@@ -1431,3 +1339,6 @@ Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public
 License along with this program.  If not, see
 <http://www.gnu.org/licenses/>.
+
+EOF
+}

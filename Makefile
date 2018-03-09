@@ -30,7 +30,7 @@ dinstall: deb
 	gzip -n pve-zsync.8.man -c9 >$@
 
 pve-zsync.8.man: pve-zsync
-	pod2man -c "Proxmox Documentation" -s 8 -r ${RELEASE} -n pve-zsync  pve-zsync pve-zsync.8.man
+	./pve-zsync printpod | pod2man -c "Proxmox Documentation" -s 8 -r ${RELEASE} -n pve-zsync - pve-zsync.8.man
 
 .PHONY: install
 install: pve-zsync.8.man pve-zsync.8.gz
