@@ -1036,7 +1036,9 @@ sub send_image {
 \t\tname of the sync job, if not set it is default.
 \tIt is only necessary if scheduler allready contains this source.\n
 \t-source\tstring\n
-\t\tthe source can be an <VMID> or [IP:]<ZFSPool>[/Path]\n";
+\t\tthe source can be an <VMID> or [IP:]<ZFSPool>[/Path]\n
+\t-verbose   boolean\n
+\t\tprint out the sync progress.\n;"
 
     my $help_create = "$PROGNAME create -dest <string> -source <string> [OPTIONS]/n
 \tCreate a sync Job\n
@@ -1313,6 +1315,10 @@ pve-zsync sync -dest <string> -source <string> [OPTIONS]
         -source    string
 
 		the source can be an <VMID> or [IP:]<ZFSPool>[/Path]
+
+	-verbose   boolean
+
+		print out the sync progress.
 
 =head1 DESCRIPTION
 
