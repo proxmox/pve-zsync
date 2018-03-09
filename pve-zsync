@@ -1220,7 +1220,7 @@ if ($command eq 'destroy') {
 	print help($help_command);
 
     }
-    if ($param->{verbose} == 1){
+    if ($param->{verbose}) {
 	exec("man $PROGNAME");
 
     } else {
