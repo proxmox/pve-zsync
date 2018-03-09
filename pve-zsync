@@ -1018,23 +1018,50 @@ sub disable_job {
 
 my $command = $ARGV[0];
 
-my $commands = {'destroy' => 1,
-		'create' => 1,
-		'sync' => 1,
-		'list' => 1,
-		'status' => 1,
-		'help' => 1,
-		'enable' => 1,
-		'disable' => 1,
-		'printpod' => 1,
-};
+my $cmd_help = {
+    destroy => qq{
+$PROGNAME destroy -source <string> [OPTIONS]
 
-if (!$command || !$commands->{$command}) {
-    usage();
-    die "\n";
-}
+        remove a sync Job from the scheduler
 
-my $help_sync = <<EOF;
+        -name      string
+
+		name of the sync job, if not set it is default
+
+        -source    string
+
+                the source can be an  <VMID> or [IP:]<ZFSPool>[/Path]
+    },
+    create => qq{
+$PROGNAME create -dest <string> -source <string> [OPTIONS]
+
+        Create a sync Job
+
+        -dest      string
+
+		the destination target is like [IP]:<Pool>[/Path]
+
+        -limit     integer
+
+		max sync speed in kBytes/s, default unlimited
+
+        -maxsnap   string
+
+		how much snapshots will be kept before get erased, default 1
+
+        -name      string
+
+		name of the sync job, if not set it is default
+
+        -skip      boolean
+
+		if this flag is set it will skip the first sync
+
+        -source    string
+
+		the source can be an <VMID> or [IP:]<ZFSPool>[/Path]
+    },
+    sync => qq{
 $PROGNAME sync -dest <string> -source <string> [OPTIONS]\n
 
 	will sync one time
@@ -1063,53 +1090,18 @@ $PROGNAME sync -dest <string> -source <string> [OPTIONS]\n
 	-verbose   boolean
 
 		print out the sync progress.
-EOF
+    },
+    list => qq{
+$PROGNAME list
 
-my $help_create = <<EOF;
-$PROGNAME create -dest <string> -source <string> [OPTIONS]
+	Get a List of all scheduled Sync Jobs
+    },
+    status => qq{
+$PROGNAME status
 
-        Create a sync Job
-
-        -dest      string
-
-		the destination target is like [IP]:<Pool>[/Path]
-
-        -limit     integer
-
-		max sync speed in kBytes/s, default unlimited
-
-        -maxsnap   string
-
-		how much snapshots will be kept before get erased, default 1
-
-        -name      string
-
-		name of the sync job, if not set it is default
-
-        -skip      boolean
-
-		if this flag is set it will skip the first sync
-
-        -source    string
-
-		the source can be an <VMID> or [IP:]<ZFSPool>[/Path]
-EOF
-
-my $help_destroy = <<EOF;
-$PROGNAME destroy -source <string> [OPTIONS]
-
-        remove a sync Job from the scheduler
-
-        -name      string
-
-		name of the sync job, if not set it is default
-
-        -source    string
-
-                the source can be an  <VMID> or [IP:]<ZFSPool>[/Path]
-EOF
-
-my $help_help = <<EOF;
+	Get the status of all scheduled Sync Jobs
+    },
+    help => qq{
 $PROGNAME help <cmd> [OPTIONS]
 
 	Get help about specified command.
@@ -1121,21 +1113,8 @@ $PROGNAME help <cmd> [OPTIONS]
 	-verbose   boolean
 
 		Verbose output format.
-EOF
-
-my $help_list = <<EOF;
-$PROGNAME list
-
-	Get a List of all scheduled Sync Jobs
-EOF
-
-my $help_status = <<EOF;
-$PROGNAME status
-
-	Get the status of all scheduled Sync Jobs
-EOF
-
-my $help_enable = <<EOF;
+    },
+    enable => qq{
 $PROGNAME enable -source <string> [OPTIONS]
 
         enable a syncjob and reset error
@@ -1147,9 +1126,8 @@ $PROGNAME enable -source <string> [OPTIONS]
         -source    string
 
                 the source can be an  <VMID> or [IP:]<ZFSPool>[/Path]
-EOF
-
-my $help_disable = <<EOF;
+    },
+    disable => qq{
 $PROGNAME disable -source <string> [OPTIONS]
 
         pause a sync job
@@ -1161,57 +1139,42 @@ $PROGNAME disable -source <string> [OPTIONS]
         -source    string
 
                 the source can be an  <VMID> or [IP:]<ZFSPool>[/Path] 
-EOF
+    },
+    printpod => 'internal command',
 
-sub help {
-    my ($command) = @_;
+};
 
-    if ($command eq 'help') {
-	die "$help_help\n";
-
-    } elsif ($command eq 'sync') {
-	die "$help_sync\n";
-
-    } elsif ($command eq 'destroy') {
-	die "$help_destroy\n";
-
-    } elsif ($command eq 'create') {
-	die "$help_create\n";
-
-    } elsif ($command eq 'list') {
-	die "$help_list\n";
-
-    } elsif ($command eq 'status') {
-	die "$help_status\n";
-
-    } elsif ($command eq 'enable') {
-	die "$help_enable\n";
-
-    } elsif ($command eq 'disable') {
-	die "$help_disable\n";
-
-    }
-
+if (!$command) {
+    usage(); die "\n";
+} elsif (!$cmd_help->{$command}) {
+    print "ERROR: unknown command '$command'";
+    usage(1); die "\n";
 }
 
 my @arg = @ARGV;
 my $param = parse_argv(@arg);
 
+sub check_params {
+    for (@_) {
+	die "$cmd_help->{$command}\n" if !$param->{$_};
+    }
+}
+
 if ($command eq 'destroy') {
-    die "$help_destroy\n" if !$param->{source};
+    check_params(qw(source));
 
     check_target($param->{source});
     destroy_job($param);
 
 } elsif ($command eq 'sync') {
-    die "$help_sync\n" if !$param->{source} || !$param->{dest};
+    check_params(qw(source dest));
 
     check_target($param->{source});
     check_target($param->{dest});
     sync($param);
 
 } elsif ($command eq 'create') {
-    die "$help_create\n" if !$param->{source} || !$param->{dest};
+    check_params(qw(source dest));
 
     check_target($param->{source});
     check_target($param->{dest});
@@ -1226,8 +1189,8 @@ if ($command eq 'destroy') {
 } elsif ($command eq 'help') {
     my $help_command = $ARGV[1];
 
-    if ($help_command && $commands->{$help_command}) {
-	print help($help_command);
+    if ($help_command && $cmd_help->{$help_command}) {
+	die "$cmd_help->{$command}\n";
 
     }
     if ($param->{verbose}) {
@@ -1239,13 +1202,13 @@ if ($command eq 'destroy') {
     }
 
 } elsif ($command eq 'enable') {
-    die "$help_enable\n" if !$param->{source};
+    check_params(qw(source));
 
     check_target($param->{source});
     enable_job($param);
 
 } elsif ($command eq 'disable') {
-    die "$help_disable\n" if !$param->{source};
+    check_params(qw(source));
 
     check_target($param->{source});
     disable_job($param);
@@ -1275,6 +1238,9 @@ sub check_target {
 }
 
 sub print_pod {
+
+    my $synopsis = join("\n", sort values %$cmd_help);
+
     print <<EOF;
 =head1 NAME
 
@@ -1284,21 +1250,7 @@ pve-zsync - PVE ZFS Replication Manager
 
 pve-zsync <COMMAND> [ARGS] [OPTIONS]
 
-$help_help
-
-$help_create
-
-$help_destroy
-
-$help_disable
-
-$help_enable
-
-$help_list
-
-$help_status
-
-$help_sync
+$synopsis
 
 =head1 DESCRIPTION
 
