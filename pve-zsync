@@ -46,10 +46,14 @@ my $HOSTRE = "(?:$HOSTv4RE1|\\[$IPV6RE\\])";       # ipv6 must always be in brac
 # targets are either a VMID, or a 'host:zpool/path' with 'host:' being optional
 my $TARGETRE = qr!^(?:($HOSTRE):)?(\d+|(?:[\w\-_]+)(/.+)?)$!;
 
-check_bin ('cstream');
-check_bin ('zfs');
-check_bin ('ssh');
-check_bin ('scp');
+my $command = $ARGV[0];
+
+if (defined($command) && $command ne 'help' && $command ne 'printpod') {
+    check_bin ('cstream');
+    check_bin ('zfs');
+    check_bin ('ssh');
+    check_bin ('scp');
+}
 
 $SIG{TERM} = $SIG{QUIT} = $SIG{PIPE} = $SIG{HUP} = $SIG{KILL} = $SIG{INT} =
     sub {
@@ -1015,8 +1019,6 @@ sub disable_job {
     update_state($job);
     update_cron($job);
 }
-
-my $command = $ARGV[0];
 
 my $cmd_help = {
     destroy => qq{
