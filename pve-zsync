@@ -1192,7 +1192,7 @@ if ($command eq 'destroy') {
     my $help_command = $ARGV[1];
 
     if ($help_command && $cmd_help->{$help_command}) {
-	die "$cmd_help->{$command}\n";
+	die "$cmd_help->{$help_command}\n";
 
     }
     if ($param->{verbose}) {
