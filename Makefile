@@ -5,62 +5,48 @@ PACKAGE=pve-zsync
 PKGREL=16
 
 DESTDIR=
-PREFIX=/usr
-BINDIR=${PREFIX}/bin
-SBINDIR=${PREFIX}/sbin
-MANDIR=${PREFIX}/share/man
-DOCDIR=${PREFIX}/share/doc/${PACKAGE}
-PODDIR=${DOCDIR}/pod
-MAN1DIR=${MANDIR}/man8/
+SBINDIR=${DESTDIR}/usr/sbin
+MAN8DIR=${DESTDIR}/usr/share/man/man8
+DOCDIR=${DESTDIR}/usr/share/doc/${PACKAGE}
+WORKDIR=${DESTDIR}/var/lib/pve-zsync
 
-#ARCH:=$(shell dpkg-architecture -qDEB_BUILD_ARCH)
+BUILDDIR=build
+
 ARCH=all
-GITVERSION:=$(shell cat .git/refs/heads/master)
+GITVERSION:=$(shell git rev-parse HEAD)
 
 DEB=${PACKAGE}_${VERSION}-${PKGREL}_${ARCH}.deb
 
-all: ${DEB}
+all:
 
 .PHONY: dinstall
 dinstall: deb
 	dpkg -i ${DEB}
 
-%.8.gz: %.8.man
-	rm -f $@
-	gzip -n pve-zsync.8.man -c9 >$@
-
-pve-zsync.8.man: pve-zsync
-	./pve-zsync printpod | pod2man -c "Proxmox Documentation" -s 8 -r ${RELEASE} -n pve-zsync - pve-zsync.8.man
+pve-zsync.8: pve-zsync
+	./pve-zsync printpod | pod2man -c "Proxmox Documentation" -s 8 -r ${RELEASE} -n pve-zsync - pve-zsync.8
 
 .PHONY: install
-install: pve-zsync.8.man pve-zsync.8.gz
-	install -d ${DESTDIR}${SBINDIR}
-	install -m 0755 pve-zsync ${DESTDIR}${SBINDIR}
-	install -d ${DESTDIR}/usr/share/man/man8
-	install -d ${DESTDIR}${PODDIR}
-	install -m 0644 pve-zsync.8.gz ${DESTDIR}/usr/share/man/man8/
+install: pve-zsync.8
+	install -d ${SBINDIR}
+	install -m 0755 pve-zsync ${SBINDIR}/pve-zsync
+	install -d ${WORKDIR}
+	install -d ${MAN8DIR}
+	install -m 0644 pve-zsync.8 ${MAN8DIR}/pve-zsync.8
+	install -d ${DOCDIR}
+	echo "git clone git://git.proxmox.com/git/pve-zsync.git\\ngit checkout ${GITVERSION}" > ${DOCDIR}/SOURCE
 
 .PHONY: deb
 deb: ${DEB}
 ${DEB}:
-	rm -rf debian
-	mkdir debian
-	install -d debian/var/lib/pve-zsync
-	make DESTDIR=${CURDIR}/debian install
-	install -d -m 0755 debian/DEBIAN
-	sed -e s/@@VERSION@@/${VERSION}/ -e s/@@PKGRELEASE@@/${PKGREL}/ -e s/@@ARCH@@/${ARCH}/ <control.in >debian/DEBIAN/control
-	install -D -m 0644 copyright debian/${DOCDIR}/copyright
-	install -m 0644 changelog.Debian debian/${DOCDIR}/
-	gzip -n -9 debian/${DOCDIR}/changelog.Debian
-	echo "git clone git://git.proxmox.com/git/pve-storage.git\\ngit checkout ${GITVERSION}" > debian/${DOCDIR}/SOURCE
-	fakeroot dpkg-deb --build debian
-	mv debian.deb ${DEB}
+	rm -rf ${BUILDDIR}
+	rsync -a * build
+	cd build; dpkg-buildpackage -b -us -uc
 	lintian ${DEB}
-	rm -rf debian
 
 .PHONY: clean
 clean:
-	rm -rf debian *.deb ${PACKAGE}-*.tar.gz dist *.8.man *.8.gz *.buildinfo
+	rm -rf ${BUILDDIR} *.deb *.buildinfo *.changes
 	find . -name '*~' -exec rm {} ';'
 
 .PHONY: distclean

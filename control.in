@@ -1,9 +1,0 @@
-Package: pve-zsync
-Version: @@VERSION@@-@@PKGRELEASE@@
-Section: perl
-Priority: optional
-Architecture: @@ARCH@@
-Depends: perl (>= 5.6.0-16)
-Maintainer: Proxmox Support Team <support@proxmox.com>
-Description: Proxmox VE storage management library
- This package contains the Proxmox VE ZFS sync Tool.

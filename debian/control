@@ -1,0 +1,13 @@
+Source: pve-zsync
+Section: perl
+Priority: optional
+Maintainer: Proxmox Support Team <support@proxmox.com>
+Standards-Version: 3.8.4
+
+Package: pve-zsync
+Section: perl
+Priority: optional
+Architecture: all
+Depends: ${perl:Depends},
+Description: Proxmox VE ZFS syncing tool
+ Tool for automated syncing of ZFS subvolumes and pools.
