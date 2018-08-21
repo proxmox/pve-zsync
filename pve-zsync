@@ -124,12 +124,12 @@ sub get_status {
 }
 
 sub check_pool_exists {
-    my ($target) = @_;
+    my ($target, $user) = @_;
 
     my $cmd = [];
 
     if ($target->{ip}) {
-	push @$cmd, 'ssh', "root\@$target->{ip}", '--';
+	push @$cmd, 'ssh', "$user\@$target->{ip}", '--';
     }
     push @$cmd, 'zfs', 'list', '-H', '--', $target->{all};
     eval {
@@ -210,6 +210,8 @@ sub parse_argv {
     $param->{name} = undef;
     $param->{skip} = undef;
     $param->{method} = undef;
+    $param->{source_user} = undef;
+    $param->{dest_user} = undef;
 
     my ($ret, $ar) = GetOptionsFromArray(\@arg,
 					 'dest=s' => \$param->{dest},
@@ -219,7 +221,9 @@ sub parse_argv {
 					 'maxsnap=i' => \$param->{maxsnap},
 					 'name=s' => \$param->{name},
 					 'skip' => \$param->{skip},
-					 'method=s' => \$param->{method});
+					 'method=s' => \$param->{method},
+					 'source-user=s' => \$param->{source_user},
+					 'dest-user=s' => \$param->{dest_user});
 
     if ($ret == 0) {
 	die "can't parse options\n";
@@ -228,6 +232,8 @@ sub parse_argv {
     $param->{name} = "default" if !$param->{name};
     $param->{maxsnap} = 1 if !$param->{maxsnap};
     $param->{method} = "ssh" if !$param->{method};
+    $param->{source_user} = "root" if(!$param->{source_user});
+    $param->{dest_user} = "root" if(!$param->{dest_user});
 
     return $param;
 }
@@ -266,6 +272,8 @@ sub encode_cron {
 	    $cfg->{$param->{source}}->{$param->{name}}->{maxsnap} = $param->{maxsnap};
 	    $cfg->{$param->{source}}->{$param->{name}}->{skip} = $param->{skip};
 	    $cfg->{$param->{source}}->{$param->{name}}->{method} = $param->{method};
+	    $cfg->{$param->{source}}->{$param->{name}}->{source_user} = $param->{source_user};
+	    $cfg->{$param->{source}}->{$param->{name}}->{dest_user} = $param->{dest_user};
 	}
     }
 
@@ -287,6 +295,8 @@ sub param_to_job {
     $job->{limit} = $param->{limit};
     $job->{maxsnap} = $param->{maxsnap} if $param->{maxsnap};
     $job->{source} = $param->{source};
+    $job->{source_user} = $param->{source_user};
+    $job->{dest_user} = $param->{dest_user};
 
     return $job;
 }
@@ -430,6 +440,8 @@ sub format_job {
     $text .= " --limit $job->{limit}" if $job->{limit};
     $text .= " --method $job->{method}";
     $text .= " --verbose" if $job->{verbose};
+    $text .= " --source-user $job->{source_user}";
+    $text .= " --dest-user $job->{dest_user}";
     $text .= "\n";
 
     return $text;
@@ -457,9 +469,9 @@ sub list {
 }
 
 sub vm_exists {
-    my ($target) = @_;
+    my ($target, $user) = @_;
 
-    my @cmd = ('ssh', "root\@$target->{ip}", '--') if $target->{ip};
+    my @cmd = ('ssh', "$user\@$target->{ip}", '--') if $target->{ip};
 
     my $res = undef;
 
@@ -490,20 +502,20 @@ sub init {
     my $dest = parse_target($param->{dest});
 
     if (my $ip =  $dest->{ip}) {
-	run_cmd(['ssh-copy-id', '-i', '/root/.ssh/id_rsa.pub', "root\@$ip"]);
+	run_cmd(['ssh-copy-id', '-i', '/root/.ssh/id_rsa.pub', "$param->{dest_user}\@$ip"]);
     }
 
     if (my $ip =  $source->{ip}) {
-	run_cmd(['ssh-copy-id', '-i', '/root/.ssh/id_rsa.pub', "root\@$ip"]);
+	run_cmd(['ssh-copy-id', '-i', '/root/.ssh/id_rsa.pub', "$param->{source_user}\@$ip"]);
     }
 
-    die "Pool $dest->{all} does not exists\n" if !check_pool_exists($dest);
+    die "Pool $dest->{all} does not exists\n" if !check_pool_exists($dest, $param->{dest_user});
 
     if (!defined($source->{vmid})) {
-	die "Pool $source->{all} does not exists\n" if !check_pool_exists($source);
+	die "Pool $source->{all} does not exists\n" if !check_pool_exists($source, $param->{source_user});
     }
 
-    my $vm_type = vm_exists($source);
+    my $vm_type = vm_exists($source, $param->{source_user});
     $job->{vm_type} = $vm_type;
     $source->{vm_type} = $vm_type;
 
@@ -512,7 +524,7 @@ sub init {
     die "Config already exists\n" if $cfg->{$job->{source}}->{$job->{name}};
 
     #check if vm has zfs disks if not die;
-    get_disks($source) if $source->{vmid};
+    get_disks($source, $param->{source_user}) if $source->{vmid};
 
     update_cron($job);
     update_state($job);
@@ -575,17 +587,17 @@ sub sync {
     my $sync_path = sub {
 	my ($source, $dest, $job, $param, $date) = @_;
 
-	($source->{old_snap}, $source->{last_snap}) = snapshot_get($source, $dest, $param->{maxsnap}, $param->{name});
+	($source->{old_snap}, $source->{last_snap}) = snapshot_get($source, $dest, $param->{maxsnap}, $param->{name}, $param->{source_user});
 
-	snapshot_add($source, $dest, $param->{name}, $date);
+	snapshot_add($source, $dest, $param->{name}, $date, $param->{source_user}, $param->{dest_user});
 
 	send_image($source, $dest, $param);
 
-	snapshot_destroy($source, $dest, $param->{method}, $source->{old_snap}) if ($source->{destroy} && $source->{old_snap});
+	snapshot_destroy($source, $dest, $param->{method}, $source->{old_snap}, $param->{source_user}, $param->{dest_user}) if ($source->{destroy} && $source->{old_snap});
 
     };
 
-    my $vm_type = vm_exists($source);
+    my $vm_type = vm_exists($source, $param->{source_user});
     $source->{vm_type} = $vm_type;
 
     if ($job) {
@@ -597,7 +609,8 @@ sub sync {
     eval{
 	if ($source->{vmid}) {
 	    die "VM $source->{vmid} doesn't exist\n" if !$vm_type;
-	    my $disks = get_disks($source);
+	    die "source-user has to be root for syncing VMs\n" if ($param->{source_user} ne "root");
+	    my $disks = get_disks($source, $param->{source_user});
 
 	    foreach my $disk (sort keys %{$disks}) {
 		$source->{all} = $disks->{$disk}->{all};
@@ -607,9 +620,9 @@ sub sync {
 		&$sync_path($source, $dest, $job, $param, $date);
 	    }
 	    if ($param->{method} eq "ssh" && ($source->{ip} || $dest->{ip})) {
-		send_config($source, $dest,'ssh');
+		send_config($source, $dest,'ssh', $param->{source_user}, $param->{dest_user});
 	    } else {
-		send_config($source, $dest,'local');
+		send_config($source, $dest,'local', $param->{source_user}, $param->{dest_user});
 	    }
 	} else {
 	    &$sync_path($source, $dest, $job, $param, $date);
@@ -637,10 +650,10 @@ sub sync {
 }
 
 sub snapshot_get{
-    my ($source, $dest, $max_snap, $name) = @_;
+    my ($source, $dest, $max_snap, $name, $source_user) = @_;
 
     my $cmd = [];
-    push @$cmd, 'ssh', "root\@$source->{ip}", '--', if $source->{ip};
+    push @$cmd, 'ssh', "$source_user\@$source->{ip}", '--', if $source->{ip};
     push @$cmd, 'zfs', 'list', '-r', '-t', 'snapshot', '-Ho', 'name', '-S', 'creation';
     push @$cmd, $source->{all};
 
@@ -670,7 +683,7 @@ sub snapshot_get{
 }
 
 sub snapshot_add {
-    my ($source, $dest, $name, $date) = @_;
+    my ($source, $dest, $name, $date, $source_user, $dest_user) = @_;
 
     my $snap_name = "rep_$name\_".$date;
 
@@ -679,14 +692,14 @@ sub snapshot_add {
     my $path = "$source->{all}\@$snap_name";
 
     my $cmd = [];
-    push @$cmd, 'ssh', "root\@$source->{ip}", '--', if $source->{ip};
+    push @$cmd, 'ssh', "$source_user\@$source->{ip}", '--', if $source->{ip};
     push @$cmd, 'zfs', 'snapshot', $path;
     eval{
 	run_cmd($cmd);
     };
 
     if (my $err = $@) {
-	snapshot_destroy($source, $dest, 'ssh', $snap_name);
+	snapshot_destroy($source, $dest, 'ssh', $snap_name, $source_user, $dest_user);
 	die "$err\n";
     }
 }
@@ -728,10 +741,10 @@ sub write_cron {
 }
 
 sub get_disks {
-    my ($target) = @_;
+    my ($target, $user) = @_;
 
     my $cmd = [];
-    push @$cmd, 'ssh', "root\@$target->{ip}", '--', if $target->{ip};
+    push @$cmd, 'ssh', "$user\@$target->{ip}", '--', if $target->{ip};
 
     if ($target->{vm_type} eq 'qemu') {
 	push @$cmd, 'qm', 'config', $target->{vmid};
@@ -743,7 +756,7 @@ sub get_disks {
 
     my $res = run_cmd($cmd);
 
-    my $disks = parse_disks($res, $target->{ip}, $target->{vm_type});
+    my $disks = parse_disks($res, $target->{ip}, $target->{vm_type}, $user);
 
     return $disks;
 }
@@ -766,7 +779,7 @@ sub run_cmd {
 }
 
 sub parse_disks {
-    my ($text, $ip, $vm_type) = @_;
+    my ($text, $ip, $vm_type, $user) = @_;
 
     my $disks;
 
@@ -802,7 +815,7 @@ sub parse_disks {
 	}
 
 	my $cmd = [];
-	push @$cmd, 'ssh', "root\@$ip", '--' if $ip;
+	push @$cmd, 'ssh', "$user\@$ip", '--' if $ip;
 	push @$cmd, 'pvesm', 'path', "$stor$disk";
 	my $path = run_cmd($cmd);
 
@@ -846,14 +859,14 @@ sub parse_disks {
 }
 
 sub snapshot_destroy {
-    my ($source, $dest, $method, $snap) = @_;
+    my ($source, $dest, $method, $snap, $source_user, $dest_user) = @_;
 
     my @zfscmd = ('zfs', 'destroy');
     my $snapshot = "$source->{all}\@$snap";
 
     eval {
 	if($source->{ip} && $method eq 'ssh'){
-	    run_cmd(['ssh', "root\@$source->{ip}", '--', @zfscmd, $snapshot]);
+	    run_cmd(['ssh', "$source_user\@$source->{ip}", '--', @zfscmd, $snapshot]);
 	} else {
 	    run_cmd([@zfscmd, $snapshot]);
 	}
@@ -862,7 +875,7 @@ sub snapshot_destroy {
 	warn "WARN: $erro";
     }
     if ($dest) {
-	my @ssh = $dest->{ip} ? ('ssh', "root\@$dest->{ip}", '--') : ();
+	my @ssh = $dest->{ip} ? ('ssh', "$dest_user\@$dest->{ip}", '--') : ();
 
 	my $path = "$dest->{all}";
 	$path .= "/$source->{last_part}" if $source->{last_part};
@@ -877,10 +890,10 @@ sub snapshot_destroy {
 }
 
 sub snapshot_exist {
-    my ($source , $dest, $method) = @_;
+    my ($source , $dest, $method, $source_user) = @_;
 
     my $cmd = [];
-    push @$cmd, 'ssh', "root\@$dest->{ip}", '--' if $dest->{ip};
+    push @$cmd, 'ssh', "$source_user\@$dest->{ip}", '--' if $dest->{ip};
     push @$cmd, 'zfs', 'list', '-rt', 'snapshot', '-Ho', 'name';
 
     my $path = $dest->{all};
@@ -908,11 +921,11 @@ sub send_image {
 
     my $cmd = [];
 
-    push @$cmd, 'ssh', '-o', 'BatchMode=yes', "root\@$source->{ip}", '--' if $source->{ip};
+    push @$cmd, 'ssh', '-o', 'BatchMode=yes', "$param->{source_user}\@$source->{ip}", '--' if $source->{ip};
     push @$cmd, 'zfs', 'send';
     push @$cmd, '-v' if $param->{verbose};
 
-    if($source->{last_snap} && snapshot_exist($source , $dest, $param->{method})) {
+    if($source->{last_snap} && snapshot_exist($source , $dest, $param->{method}, $param->{source_user})) {
 	push @$cmd, '-i', "$source->{all}\@$source->{last_snap}";
     }
     push @$cmd, '--', "$source->{all}\@$source->{new_snap}";
@@ -926,7 +939,7 @@ sub send_image {
     $target =~ s!/+!/!g;
 
     push @$cmd, \'|';
-    push @$cmd, 'ssh', '-o', 'BatchMode=yes', "root\@$dest->{ip}", '--' if $dest->{ip};
+    push @$cmd, 'ssh', '-o', 'BatchMode=yes', "$param->{dest_user}\@$dest->{ip}", '--' if $dest->{ip};
     push @$cmd, 'zfs', 'recv', '-F', '--';
     push @$cmd, "$target";
 
@@ -935,14 +948,14 @@ sub send_image {
     };
 
     if (my $erro = $@) {
-	snapshot_destroy($source, undef, $param->{method}, $source->{new_snap});
+	snapshot_destroy($source, undef, $param->{method}, $source->{new_snap}, $param->{source_user}, $param->{dest_user});
 	die $erro;
     };
 }
 
 
 sub send_config{
-    my ($source, $dest, $method) = @_;
+    my ($source, $dest, $method, $source_user, $dest_user) = @_;
 
     my $source_target = $source->{vm_type} eq 'qemu' ? "$QEMU_CONF/$source->{vmid}.conf": "$LXC_CONF/$source->{vmid}.conf";
     my $dest_target_new ="$source->{vmid}.conf.$source->{vm_type}.$source->{new_snap}";
@@ -953,20 +966,20 @@ sub send_config{
 
     if ($method eq 'ssh'){
 	if ($dest->{ip} && $source->{ip}) {
-	    run_cmd(['ssh', "root\@$dest->{ip}", '--', 'mkdir', '-p', '--', $config_dir]);
-	    run_cmd(['scp', '--', "root\@[$source->{ip}]:$source_target", "root\@[$dest->{ip}]:$dest_target_new"]);
+	    run_cmd(['ssh', "$dest_user\@$dest->{ip}", '--', 'mkdir', '-p', '--', $config_dir]);
+	    run_cmd(['scp', '--', "$source_user\@[$source->{ip}]:$source_target", "$dest_user\@[$dest->{ip}]:$dest_target_new"]);
 	} elsif ($dest->{ip}) {
-	    run_cmd(['ssh', "root\@$dest->{ip}", '--', 'mkdir', '-p', '--', $config_dir]);
-	    run_cmd(['scp', '--', $source_target, "root\@[$dest->{ip}]:$dest_target_new"]);
+	    run_cmd(['ssh', "$source_user\@$dest->{ip}", '--', 'mkdir', '-p', '--', $config_dir]);
+	    run_cmd(['scp', '--', $source_target, "$dest_user\@[$dest->{ip}]:$dest_target_new"]);
 	} elsif ($source->{ip}) {
 	    run_cmd(['mkdir', '-p', '--', $config_dir]);
-	    run_cmd(['scp', '--', "root\@[$source->{ip}]:$source_target", $dest_target_new]);
+	    run_cmd(['scp', '--', "$source_user\@[$source->{ip}]:$source_target", $dest_target_new]);
 	}
 
 	if ($source->{destroy}){
 	    my $dest_target_old ="${config_dir}/$source->{vmid}.conf.$source->{vm_type}.$source->{old_snap}";
 	    if($dest->{ip}){
-		run_cmd(['ssh', "root\@$dest->{ip}", '--', 'rm', '-f', '--', $dest_target_old]);
+		run_cmd(['ssh', "$dest_user\@$dest->{ip}", '--', 'rm', '-f', '--', $dest_target_old]);
 	    } else {
 		run_cmd(['rm', '-f', '--', $dest_target_old]);
 	    }
@@ -1043,6 +1056,10 @@ $PROGNAME create -dest <string> -source <string> [OPTIONS]
 
 		the destination target is like [IP]:<Pool>[/Path]
 
+        -dest-user string
+
+		name of the user on the destination target, root by default
+
         -limit     integer
 
 		max sync speed in kBytes/s, default unlimited
@@ -1062,6 +1079,10 @@ $PROGNAME create -dest <string> -source <string> [OPTIONS]
         -source    string
 
 		the source can be an <VMID> or [IP:]<ZFSPool>[/Path]
+
+        -source-user    string
+
+		name of the user on the source target, root by default
     },
     sync => qq{
 $PROGNAME sync -dest <string> -source <string> [OPTIONS]\n
@@ -1071,6 +1092,10 @@ $PROGNAME sync -dest <string> -source <string> [OPTIONS]\n
         -dest      string
 
 		the destination target is like [IP:]<Pool>[/Path]
+
+        -dest-user string
+
+		name of the user on the destination target, root by default
 
 	-limit     integer
 
@@ -1088,6 +1113,10 @@ $PROGNAME sync -dest <string> -source <string> [OPTIONS]\n
         -source    string
 
 		the source can be an <VMID> or [IP:]<ZFSPool>[/Path]
+
+        -source-user    string
+
+		name of the user on the source target, root by default
 
 	-verbose   boolean
 
