@@ -201,39 +201,40 @@ sub read_cron {
 sub parse_argv {
     my (@arg) = @_;
 
-    my $param = {};
-    $param->{dest} = undef;
-    $param->{source} = undef;
-    $param->{verbose} = undef;
-    $param->{limit} = undef;
-    $param->{maxsnap} = undef;
-    $param->{name} = undef;
-    $param->{skip} = undef;
-    $param->{method} = undef;
-    $param->{source_user} = undef;
-    $param->{dest_user} = undef;
+    my $param = {
+	dest => undef,
+	source => undef,
+	verbose => undef,
+	limit => undef,
+	maxsnap => undef,
+	name => undef,
+	skip => undef,
+	method => undef,
+	source_user => undef,
+	dest_user => undef,
+    };
 
-    my ($ret, $ar) = GetOptionsFromArray(\@arg,
-					 'dest=s' => \$param->{dest},
-					 'source=s' => \$param->{source},
-					 'verbose' => \$param->{verbose},
-					 'limit=i' => \$param->{limit},
-					 'maxsnap=i' => \$param->{maxsnap},
-					 'name=s' => \$param->{name},
-					 'skip' => \$param->{skip},
-					 'method=s' => \$param->{method},
-					 'source-user=s' => \$param->{source_user},
-					 'dest-user=s' => \$param->{dest_user});
+    my ($ret) = GetOptionsFromArray(
+	\@arg,
+	'dest=s' => \$param->{dest},
+	'source=s' => \$param->{source},
+	'verbose' => \$param->{verbose},
+	'limit=i' => \$param->{limit},
+	'maxsnap=i' => \$param->{maxsnap},
+	'name=s' => \$param->{name},
+	'skip' => \$param->{skip},
+	'method=s' => \$param->{method},
+	'source-user=s' => \$param->{source_user},
+	'dest-user=s' => \$param->{dest_user}
+    );
 
-    if ($ret == 0) {
-	die "can't parse options\n";
-    }
+    die "can't parse options\n" if $ret == 0;
 
-    $param->{name} = "default" if !$param->{name};
-    $param->{maxsnap} = 1 if !$param->{maxsnap};
-    $param->{method} = "ssh" if !$param->{method};
-    $param->{source_user} = "root" if(!$param->{source_user});
-    $param->{dest_user} = "root" if(!$param->{dest_user});
+    $param->{name} //= "default";
+    $param->{maxsnap} //= 1;
+    $param->{method} //= "ssh";
+    $param->{source_user} //= "root";
+    $param->{dest_user} //= "root";
 
     return $param;
 }
@@ -266,14 +267,10 @@ sub encode_cron {
 	my $param = parse_argv(@arg);
 
 	if ($param->{source} && $param->{dest}) {
-	    $cfg->{$param->{source}}->{$param->{name}}->{dest} = $param->{dest};
-	    $cfg->{$param->{source}}->{$param->{name}}->{verbose} = $param->{verbose};
-	    $cfg->{$param->{source}}->{$param->{name}}->{limit} = $param->{limit};
-	    $cfg->{$param->{source}}->{$param->{name}}->{maxsnap} = $param->{maxsnap};
-	    $cfg->{$param->{source}}->{$param->{name}}->{skip} = $param->{skip};
-	    $cfg->{$param->{source}}->{$param->{name}}->{method} = $param->{method};
-	    $cfg->{$param->{source}}->{$param->{name}}->{source_user} = $param->{source_user};
-	    $cfg->{$param->{source}}->{$param->{name}}->{dest_user} = $param->{dest_user};
+	    my $source = delete $param->{source};
+	    my $name = delete $param->{name};
+
+	    $cfg->{$source}->{$name} = $param;
 	}
     }
 
