@@ -1,3 +1,11 @@
+pve-zsync (1.7-1) unstable; urgency=medium
+
+  * fix #1860 added ability to specify source and destination user
+
+  * fix printing help of specific command
+
+ -- Proxmox Support Team <support@proxmox.com>  Fri, 24 Aug 2018 11:43:53 +0200
+
 pve-zsync (1.6-16) unstable; urgency=medium
 
   * allow one to use the whole pool as replication source
