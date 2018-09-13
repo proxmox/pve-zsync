@@ -426,7 +426,7 @@ sub format_job {
 	$text = "#";
     }
     if ($line) {
-	$line =~ /^#*(.+) root/;
+	$line =~ /^#*\s*((?:\S+\s+){4}\S+)\s+root/;
 	$text .= $1;
     } else {
 	$text .= "*/$INTERVAL * * * *";
