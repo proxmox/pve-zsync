@@ -887,10 +887,10 @@ sub snapshot_destroy {
 }
 
 sub snapshot_exist {
-    my ($source , $dest, $method, $source_user) = @_;
+    my ($source , $dest, $method, $dest_user) = @_;
 
     my $cmd = [];
-    push @$cmd, 'ssh', "$source_user\@$dest->{ip}", '--' if $dest->{ip};
+    push @$cmd, 'ssh', "$dest_user\@$dest->{ip}", '--' if $dest->{ip};
     push @$cmd, 'zfs', 'list', '-rt', 'snapshot', '-Ho', 'name';
 
     my $path = $dest->{all};
@@ -922,7 +922,7 @@ sub send_image {
     push @$cmd, 'zfs', 'send';
     push @$cmd, '-v' if $param->{verbose};
 
-    if($source->{last_snap} && snapshot_exist($source , $dest, $param->{method}, $param->{source_user})) {
+    if($source->{last_snap} && snapshot_exist($source , $dest, $param->{method}, $param->{dest_user})) {
 	push @$cmd, '-i', "$source->{all}\@$source->{last_snap}";
     }
     push @$cmd, '--', "$source->{all}\@$source->{new_snap}";
