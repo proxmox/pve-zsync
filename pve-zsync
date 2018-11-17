@@ -966,7 +966,7 @@ sub send_config{
 	    run_cmd(['ssh', "$dest_user\@$dest->{ip}", '--', 'mkdir', '-p', '--', $config_dir]);
 	    run_cmd(['scp', '--', "$source_user\@[$source->{ip}]:$source_target", "$dest_user\@[$dest->{ip}]:$dest_target_new"]);
 	} elsif ($dest->{ip}) {
-	    run_cmd(['ssh', "$source_user\@$dest->{ip}", '--', 'mkdir', '-p', '--', $config_dir]);
+	    run_cmd(['ssh', "$dest_user\@$dest->{ip}", '--', 'mkdir', '-p', '--', $config_dir]);
 	    run_cmd(['scp', '--', $source_target, "$dest_user\@[$dest->{ip}]:$dest_target_new"]);
 	} elsif ($source->{ip}) {
 	    run_cmd(['mkdir', '-p', '--', $config_dir]);
