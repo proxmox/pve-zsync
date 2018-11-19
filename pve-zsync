@@ -574,7 +574,7 @@ sub sync {
 	$job = get_job($param);
     };
 
-    if ($job && $job->{state} eq "syncing") {
+    if ($job && defined($job->{state}) && $job->{state} eq "syncing") {
 	die "Job --source $param->{source} --name $param->{name} is syncing at the moment";
     }
 
