@@ -468,19 +468,18 @@ sub list {
 sub vm_exists {
     my ($target, $user) = @_;
 
-    my @cmd = ('ssh', "$user\@$target->{ip}", '--') if $target->{ip};
-
-    my $res = undef;
-
     return undef if !defined($target->{vmid});
 
-    eval { $res = run_cmd([@cmd, 'ls',  "$QEMU_CONF/$target->{vmid}.conf"]) };
+    my $conf_fn = "$target->{vmid}.conf";
 
-    return "qemu" if $res;
-
-    eval { $res = run_cmd([@cmd, 'ls',  "$LXC_CONF/$target->{vmid}.conf"]) };
-
-    return "lxc" if $res;
+    if ($target->{ip}) {
+	my @cmd = ('ssh', "$user\@$target->{ip}", '--', '/bin/ls');
+	return "qemu" if eval { run_cmd([@cmd, "$QEMU_CONF/$conf_fn"]) };
+	return "lxc" if  eval { run_cmd([@cmd, "$LXC_CONF/$conf_fn"]) };
+    } else {
+	return "qemu" if -f "$QEMU_CONF/$conf_fn";
+	return "lxc" if -f "$LXC_CONF/$conf_fn";
+    }
 
     return undef;
 }
