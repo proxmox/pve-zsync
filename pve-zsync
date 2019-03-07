@@ -54,10 +54,9 @@ if (defined($command) && $command ne 'help' && $command ne 'printpod') {
     check_bin ('scp');
 }
 
-$SIG{TERM} = $SIG{QUIT} = $SIG{PIPE} = $SIG{HUP} = $SIG{KILL} = $SIG{INT} =
-    sub {
-	die "Signal aborting sync\n";
-    };
+$SIG{TERM} = $SIG{QUIT} = $SIG{PIPE} = $SIG{HUP} = $SIG{KILL} = $SIG{INT} =  sub {
+    die "Signaled, aborting sync: $!\n";
+};
 
 sub check_bin {
     my ($bin)  = @_;
