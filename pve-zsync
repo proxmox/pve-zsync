@@ -5,7 +5,6 @@ use warnings;
 use Data::Dumper qw(Dumper);
 use Fcntl qw(:flock SEEK_END);
 use Getopt::Long qw(GetOptionsFromArray);
-use File::Copy qw(move);
 use File::Path qw(make_path);
 use JSON;
 use IO::File;
@@ -365,7 +364,7 @@ sub update_state {
     print $out_fh $text;
 
     close($out_fh);
-    move("$STATE.new", $STATE);
+    rename "$STATE.new", $STATE;
     eval {
 	close($in_fh);
     };
@@ -417,7 +416,7 @@ sub update_cron {
     die "can't write to $CRONJOBS.new\n" if !print($new_fh $text);
     close ($new_fh);
 
-    die "can't move $CRONJOBS.new: $!\n" if !move("${CRONJOBS}.new", "$CRONJOBS");
+    die "can't move $CRONJOBS.new: $!\n" if !rename "${CRONJOBS}.new", $CRONJOBS;
     close ($fh);
 }
 
