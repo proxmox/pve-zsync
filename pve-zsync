@@ -2,7 +2,7 @@
 
 use strict;
 use warnings;
-use Data::Dumper qw(Dumper);
+
 use Fcntl qw(:flock SEEK_END);
 use Getopt::Long qw(GetOptionsFromArray);
 use File::Path qw(make_path);
@@ -21,7 +21,16 @@ my $LXC_CONF = "${PVE_DIR}/lxc";
 my $LOCKFILE = "$CONFIG_PATH/${PROGNAME}.lock";
 my $PROG_PATH = "$PATH/${PROGNAME}";
 my $INTERVAL = 15;
-my $DEBUG = 0;
+my $DEBUG;
+
+BEGIN {
+    $DEBUG = 0; # change default here. not above on declaration!
+    $DEBUG ||= $ENV{ZSYNC_DEBUG};
+    if ($DEBUG) {
+	require Data::Dumper;
+	Data::Dumper->import();
+    }
+}
 
 my $IPV4OCTET = "(?:25[0-5]|(?:[1-9]|1[0-9]|2[0-4])?[0-9])";
 my $IPV4RE = "(?:(?:$IPV4OCTET\\.){3}$IPV4OCTET)";
