@@ -296,7 +296,7 @@ sub param_to_job {
     $job->{source} = $param->{source};
     $job->{source_user} = $param->{source_user};
     $job->{dest_user} = $param->{dest_user};
-    $job->{properties} = $param->{properties} ? $param->{properties} : 0;
+    $job->{properties} = !!$param->{properties};
 
     return $job;
 }
@@ -442,7 +442,7 @@ sub format_job {
     $text .= " --verbose" if $job->{verbose};
     $text .= " --source-user $job->{source_user}";
     $text .= " --dest-user $job->{dest_user}";
-    $text .= " --properties $job->{properties}" if $job->{properties};
+    $text .= " --properties" if $job->{properties};
     $text .= "\n";
 
     return $text;
