@@ -10,12 +10,13 @@ MAN8DIR=${DESTDIR}/usr/share/man/man8
 DOCDIR=${DESTDIR}/usr/share/doc/${PACKAGE}
 WORKDIR=${DESTDIR}/var/lib/pve-zsync
 
-BUILDDIR=build
+BUILDDIR ?= ${PACKAGE}-${VERSION}
 
 ARCH=all
 GITVERSION:=$(shell git rev-parse HEAD)
 
 DEB=${PACKAGE}_${VERSION}-${PKGREL}_${ARCH}.deb
+DSC=${PACKAGE}_${VERSION}-${PKGREL}.dsc
 
 all:
 
@@ -34,19 +35,27 @@ install: pve-zsync.8
 	install -d ${MAN8DIR}
 	install -m 0644 pve-zsync.8 ${MAN8DIR}/pve-zsync.8
 	install -d ${DOCDIR}
-	echo "git clone git://git.proxmox.com/git/pve-zsync.git\\ngit checkout ${GITVERSION}" > ${DOCDIR}/SOURCE
+
+${BUILDDIR}:
+	rm -rf ${BUILDDIR}
+	rsync -a * ${BUILDDIR}
+	echo "git clone git://git.proxmox.com/git/dab.git\\ngit checkout ${GITVERSION}" >  ${BUILDDIR}/debian/SOURCE
 
 .PHONY: deb
 deb: ${DEB}
-${DEB}:
-	rm -rf ${BUILDDIR}
-	rsync -a * build
-	cd build; dpkg-buildpackage -b -us -uc
+${DEB}: ${BUILDDIR}
+	cd ${BUILDDIR}; dpkg-buildpackage -b -us -uc
 	lintian ${DEB}
+
+.PHONY: dsc
+dsc: ${DSC}
+${DSC}:${BUILDDIR}
+	cd ${BUILDDIR}; dpkg-buildpackage -S -us -uc -d -nc
+	lintian ${DSC}
 
 .PHONY: clean
 clean:
-	rm -rf ${BUILDDIR} *.deb *.buildinfo *.changes
+	rm -rf ${BUILDDIR} *.deb *.dsc ${PACKAGE}*.tar.gz *.buildinfo *.changes
 	find . -name '*~' -exec rm {} ';'
 
 .PHONY: distclean
