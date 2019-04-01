@@ -968,7 +968,8 @@ sub send_config{
     my $source_target = $source->{vm_type} eq 'qemu' ? "$QEMU_CONF/$source->{vmid}.conf": "$LXC_CONF/$source->{vmid}.conf";
     my $dest_target_new ="$source->{vmid}.conf.$source->{vm_type}.$source->{new_snap}";
 
-    my $config_dir = $dest->{last_part} ?  "${CONFIG_PATH}/$dest->{last_part}" : $CONFIG_PATH;
+    my $config_dir = $CONFIG_PATH;
+    $config_dir .= "/$dest->{last_part}" if $dest->{last_part};
 
     $dest_target_new = $config_dir.'/'.$dest_target_new;
 
