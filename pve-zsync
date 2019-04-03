@@ -220,6 +220,7 @@ sub parse_argv {
 	source_user => undef,
 	dest_user => undef,
 	properties => undef,
+	dest_config_path => undef,
     };
 
     my ($ret) = GetOptionsFromArray(
@@ -235,6 +236,7 @@ sub parse_argv {
 	'source-user=s' => \$param->{source_user},
 	'dest-user=s' => \$param->{dest_user},
 	'properties' => \$param->{properties},
+	'dest-config-path=s' => \$param->{dest_config_path},
     );
 
     die "can't parse options\n" if $ret == 0;
@@ -304,6 +306,7 @@ sub param_to_job {
     $job->{source_user} = $param->{source_user};
     $job->{dest_user} = $param->{dest_user};
     $job->{properties} = !!$param->{properties};
+    $job->{dest_config_path} = $param->{dest_config_path} if $param->{dest_config_path};
 
     return $job;
 }
@@ -450,6 +453,7 @@ sub format_job {
     $text .= " --source-user $job->{source_user}";
     $text .= " --dest-user $job->{dest_user}";
     $text .= " --properties" if $job->{properties};
+    $text .= " --dest-config-path $job->{dest_config_path}" if $job->{dest_config_path};
     $text .= "\n";
 
     return $text;
@@ -627,9 +631,9 @@ sub sync {
 		&$sync_path($source, $dest, $job, $param, $date);
 	    }
 	    if ($param->{method} eq "ssh" && ($source->{ip} || $dest->{ip})) {
-		send_config($source, $dest,'ssh', $param->{source_user}, $param->{dest_user});
+		send_config($source, $dest,'ssh', $param->{source_user}, $param->{dest_user}, $param->{dest_config_path});
 	    } else {
-		send_config($source, $dest,'local', $param->{source_user}, $param->{dest_user});
+		send_config($source, $dest,'local', $param->{source_user}, $param->{dest_user}, $param->{dest_config_path});
 	    }
 	} else {
 	    &$sync_path($source, $dest, $job, $param, $date);
@@ -963,12 +967,12 @@ sub send_image {
 
 
 sub send_config{
-    my ($source, $dest, $method, $source_user, $dest_user) = @_;
+    my ($source, $dest, $method, $source_user, $dest_user, $dest_config_path) = @_;
 
     my $source_target = $source->{vm_type} eq 'qemu' ? "$QEMU_CONF/$source->{vmid}.conf": "$LXC_CONF/$source->{vmid}.conf";
     my $dest_target_new ="$source->{vmid}.conf.$source->{vm_type}.$source->{new_snap}";
 
-    my $config_dir = $CONFIG_PATH;
+    my $config_dir = $dest_config_path // $CONFIG_PATH;
     $config_dir .= "/$dest->{last_part}" if $dest->{last_part};
 
     $dest_target_new = $config_dir.'/'.$dest_target_new;
@@ -1096,6 +1100,10 @@ $PROGNAME create -dest <string> -source <string> [OPTIONS]
 	-properties	boolean
 
 		Include the dataset's properties in the stream.
+
+	-dest-config-path    string
+
+		specify a custom config path on the destination target. default is /var/lib/pve-zsync
     },
     sync => qq{
 $PROGNAME sync -dest <string> -source <string> [OPTIONS]\n
@@ -1138,6 +1146,10 @@ $PROGNAME sync -dest <string> -source <string> [OPTIONS]\n
 	-properties	boolean
 
 		Include the dataset's properties in the stream.
+
+	-dest-config-path    string
+
+		specify a custom config path on the destination target. default is /var/lib/pve-zsync
     },
     list => qq{
 $PROGNAME list
