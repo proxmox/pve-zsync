@@ -1,3 +1,9 @@
+pve-zsync (1.7-4) unstable; urgency=medium
+
+  * close #1933: add -dest-config-path option
+
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 04 Apr 2019 16:30:05 +0200
+
 pve-zsync (1.7-3) unstable; urgency=medium
 
   * Fix #1381: properties in the send stream
