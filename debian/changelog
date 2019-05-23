@@ -1,3 +1,9 @@
+pve-zsync (2.0-1) pve; urgency=medium
+
+  * rebuild for Debian Buster / PVE 6
+
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 23 May 2019 17:45:51 +0200
+
 pve-zsync (1.7-4) unstable; urgency=medium
 
   * close #1933: add -dest-config-path option
