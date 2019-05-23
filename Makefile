@@ -1,8 +1,6 @@
-RELEASE=5.4
+include /usr/share/dpkg/pkg-info.mk
 
-VERSION=1.7
 PACKAGE=pve-zsync
-PKGREL=4
 
 DESTDIR=
 SBINDIR=${DESTDIR}/usr/sbin
@@ -10,13 +8,12 @@ MAN8DIR=${DESTDIR}/usr/share/man/man8
 DOCDIR=${DESTDIR}/usr/share/doc/${PACKAGE}
 WORKDIR=${DESTDIR}/var/lib/pve-zsync
 
-BUILDDIR ?= ${PACKAGE}-${VERSION}
+BUILDDIR ?= ${PACKAGE}-${DEB_VERSION_UPSTREAM}
 
-ARCH=all
 GITVERSION:=$(shell git rev-parse HEAD)
 
-DEB=${PACKAGE}_${VERSION}-${PKGREL}_${ARCH}.deb
-DSC=${PACKAGE}_${VERSION}-${PKGREL}.dsc
+DEB=${PACKAGE}_${DEB_VERSION_UPSTREAM_REVISION}_all.deb
+DSC=${PACKAGE}_${DEB_VERSION_UPSTREAM_REVISION}.dsc
 
 all:
 
@@ -25,7 +22,7 @@ dinstall: deb
 	dpkg -i ${DEB}
 
 pve-zsync.8: pve-zsync
-	./pve-zsync printpod | pod2man -c "Proxmox Documentation" -s 8 -r ${RELEASE} -n pve-zsync - pve-zsync.8
+	./pve-zsync printpod | pod2man -c "Proxmox Documentation" -s 8 -r ${DEB_VERSION_UPSTREAM} -n pve-zsync - pve-zsync.8
 
 .PHONY: install
 install: pve-zsync.8
