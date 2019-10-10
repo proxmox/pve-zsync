@@ -589,16 +589,30 @@ sub sync {
 
 	my $date = get_date();
 	my $job;
-	eval {
-	    $job = get_job($param);
-	};
 
-	if ($job && defined($job->{state}) && $job->{state} eq "syncing") {
-	    die "Job --source $param->{source} --name $param->{name} is syncing at the moment";
-	}
+	my $dest;
+	my $source;
+	my $vm_type;
 
-	my $dest = parse_target($param->{dest});
-	my $source = parse_target($param->{source});
+	locked("$CONFIG_PATH/cron_and_state.lock", sub {
+	    eval { $job = get_job($param); };
+
+	    if ($job && defined($job->{state}) && $job->{state} eq "syncing") {
+		die "Job --source $param->{source} --name $param->{name} is syncing at the moment";
+	    }
+
+	    $dest = parse_target($param->{dest});
+	    $source = parse_target($param->{source});
+
+	    $vm_type = vm_exists($source, $param->{source_user});
+	    $source->{vm_type} = $vm_type;
+
+	    if ($job) {
+		$job->{state} = "syncing";
+		$job->{vm_type} = $vm_type if !$job->{vm_type};
+		update_state($job);
+	    }
+	}); #cron and state lock
 
 	my $sync_path = sub {
 	    my ($source, $dest, $job, $param, $date) = @_;
@@ -612,15 +626,6 @@ sub sync {
 	    snapshot_destroy($source, $dest, $param->{method}, $source->{old_snap}, $param->{source_user}, $param->{dest_user}) if ($source->{destroy} && $source->{old_snap});
 
 	};
-
-	my $vm_type = vm_exists($source, $param->{source_user});
-	$source->{vm_type} = $vm_type;
-
-	if ($job) {
-	    $job->{state} = "syncing";
-	    $job->{vm_type} = $vm_type if !$job->{vm_type};
-	    locked("$CONFIG_PATH/cron_and_state.lock", sub { update_state($job); });
-	}
 
 	eval{
 	    if ($source->{vmid}) {
@@ -645,19 +650,25 @@ sub sync {
 	    }
 	};
 	if (my $err = $@) {
-	    if ($job) {
-		$job->{state} = "error";
-		locked("$CONFIG_PATH/cron_and_state.lock", sub { update_state($job); });
-		print "Job --source $param->{source} --name $param->{name} got an ERROR!!!\nERROR Message:\n";
-	    }
+	    locked("$CONFIG_PATH/cron_and_state.lock", sub {
+		eval { $job = get_job($param); };
+		if ($job) {
+		    $job->{state} = "error";
+		    update_state($job);
+		}
+	    });
+	    print "Job --source $param->{source} --name $param->{name} got an ERROR!!!\nERROR Message:\n";
 	    die "$err\n";
 	}
 
-	if ($job) {
-	    $job->{state} = "ok";
-	    $job->{lsync} = $date;
-	    locked("$CONFIG_PATH/cron_and_state.lock", sub { update_state($job); });
-	}
+	locked("$CONFIG_PATH/cron_and_state.lock", sub {
+	    eval { $job = get_job($param); };
+	    if ($job) {
+		$job->{state} = "ok";
+		$job->{lsync} = $date;
+		update_state($job);
+	    }
+	});
     }); #sync lock
 }
 
