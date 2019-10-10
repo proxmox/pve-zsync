@@ -585,21 +585,32 @@ sub destroy_job {
 sub sync {
     my ($param) = @_;
 
+    my $job;
+
+    locked("$CONFIG_PATH/cron_and_state.lock", sub {
+	eval { $job = get_job($param) };
+
+	if ($job) {
+	    if (defined($job->{state}) && ($job->{state} eq "syncing" || $job->{state} eq "waiting")) {
+		die "Job --source $param->{source} --name $param->{name} is already scheduled to sync\n";
+	    }
+
+	    $job->{state} = "waiting";
+	    update_state($job);
+	}
+    });
+
     locked("$CONFIG_PATH/sync.lock", sub {
 
 	my $date = get_date();
-	my $job;
 
 	my $dest;
 	my $source;
 	my $vm_type;
 
 	locked("$CONFIG_PATH/cron_and_state.lock", sub {
+	    #job might've changed while we waited for the sync lock, but we can be sure it's not syncing
 	    eval { $job = get_job($param); };
-
-	    if ($job && defined($job->{state}) && $job->{state} eq "syncing") {
-		die "Job --source $param->{source} --name $param->{name} is syncing at the moment";
-	    }
 
 	    $dest = parse_target($param->{dest});
 	    $source = parse_target($param->{source});
