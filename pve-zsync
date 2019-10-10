@@ -612,6 +612,10 @@ sub sync {
 	    #job might've changed while we waited for the sync lock, but we can be sure it's not syncing
 	    eval { $job = get_job($param); };
 
+	    if ($job && defined($job->{state}) && $job->{state} eq "stopped") {
+		die "Job --source $param->{source} --name $param->{name} has been disabled\n";
+	    }
+
 	    $dest = parse_target($param->{dest});
 	    $source = parse_target($param->{source});
 
@@ -675,7 +679,11 @@ sub sync {
 	locked("$CONFIG_PATH/cron_and_state.lock", sub {
 	    eval { $job = get_job($param); };
 	    if ($job) {
-		$job->{state} = "ok";
+		if (defined($job->{state}) && $job->{state} eq "stopped") {
+		    $job->{state} = "stopped";
+		} else {
+		    $job->{state} = "ok";
+		}
 		$job->{lsync} = $date;
 		update_state($job);
 	    }
