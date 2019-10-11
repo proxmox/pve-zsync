@@ -545,10 +545,10 @@ sub init {
 	update_state($job);
     }); #cron and state lock
 
-    eval {
-	sync($param) if !$param->{skip};
-    };
-    if(my $err = $@) {
+    return if $param->{skip};
+
+    eval { sync($param) };
+    if (my $err = $@) {
 	destroy_job($param);
 	print $err;
     }
