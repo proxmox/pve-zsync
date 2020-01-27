@@ -1,3 +1,15 @@
+pve-zsync (2.0-2) pve; urgency=medium
+
+  * fix #2555: add efidisk as a valid disk key
+
+  * check whether job has been disabled during the time we were waiting/syncing
+
+  * detect other running instances of the same job
+
+  * improve locking
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 27 Jan 2020 18:48:00 +0100
+
 pve-zsync (2.0-1) pve; urgency=medium
 
   * rebuild for Debian Buster / PVE 6
