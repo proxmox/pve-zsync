@@ -53,6 +53,8 @@ my $HOSTRE = "(?:$HOSTv4RE1|\\[$IPV6RE\\])";       # ipv6 must always be in brac
 # targets are either a VMID, or a 'host:zpool/path' with 'host:' being optional
 my $TARGETRE = qr!^(?:($HOSTRE):)?(\d+|(?:[\w\-_]+)(/.+)?)$!;
 
+my $DISK_KEY_RE = qr/^(?:(?:(?:virtio|ide|scsi|sata|mp)\d+)|rootfs): /;
+
 my $command = $ARGV[0];
 
 if (defined($command) && $command ne 'help' && $command ne 'printpod') {
@@ -830,7 +832,7 @@ sub parse_disks {
 	my $line = $1;
 
 	next if $line =~ /media=cdrom/;
-	next if $line !~ m/^(?:((?:virtio|ide|scsi|sata|mp)\d+)|rootfs): /;
+	next if $line !~ m/$DISK_KEY_RE/;
 
 	#QEMU if backup is not set include in  sync
 	next if $vm_type eq 'qemu' && ($line =~ m/backup=(?i:0|no|off|false)/);
@@ -840,7 +842,7 @@ sub parse_disks {
 
 	my $disk = undef;
 	my $stor = undef;
-	if($line =~ m/^(?:(?:(?:virtio|ide|scsi|sata|mp)\d+)|rootfs): (.*)$/) {
+	if($line =~ m/$DISK_KEY_RE(.*)$/) {
 	    my @parameter = split(/,/,$1);
 
 	    foreach my $opt (@parameter) {
