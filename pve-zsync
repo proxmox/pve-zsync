@@ -933,6 +933,7 @@ sub snapshot_destroy {
     }
 }
 
+# check if snapshot for incremental sync exist on dest side
 sub snapshot_exist {
     my ($source , $dest, $method, $dest_user) = @_;
 
@@ -942,22 +943,16 @@ sub snapshot_exist {
 
     my $path = $dest->{all};
     $path .= "/$source->{last_part}" if $source->{last_part};
-    $path .= "\@$source->{old_snap}";
+    $path .= "\@$source->{last_snap}";
 
     push @$cmd, $path;
 
-
-    my $text = "";
-    eval {$text =run_cmd($cmd);};
+    eval {run_cmd($cmd)};
     if (my $erro =$@) {
 	warn "WARN: $erro";
 	return undef;
     }
-
-    while ($text && $text =~ s/^(.*?)(\n|$)//) {
-	my $line =$1;
-	return 1 if $line =~ m/^.*$source->{old_snap}$/;
-    }
+    return 1;
 }
 
 sub send_image {
