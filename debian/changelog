@@ -1,3 +1,9 @@
+pve-zsync (2.0-3) pve; urgency=medium
+
+  * check for correct incremental sync snapshot on destination
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 23 Mar 2020 18:37:20 +0100
+
 pve-zsync (2.0-2) pve; urgency=medium
 
   * fix #2555: add efidisk as a valid disk key
