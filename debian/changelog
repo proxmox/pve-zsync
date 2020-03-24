@@ -1,8 +1,10 @@
-pve-zsync (2.0-3) pve; urgency=medium
+pve-zsync (2.0-3~bpo5) pve; urgency=medium
 
   * check for correct incremental sync snapshot on destination
 
- -- Proxmox Support Team <support@proxmox.com>  Mon, 23 Mar 2020 18:37:20 +0100
+  * backport to Proxmox VE 5
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 24 Mar 2020 11:23:07 +0100
 
 pve-zsync (2.0-2) pve; urgency=medium
 
