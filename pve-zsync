@@ -634,13 +634,13 @@ sub sync {
 	my $sync_path = sub {
 	    my ($source, $dest, $job, $param, $date) = @_;
 
-	    ($source->{old_snap}, $source->{last_snap}) = snapshot_get($source, $dest, $param->{maxsnap}, $param->{name}, $param->{source_user});
+	    ($dest->{old_snap}, $dest->{last_snap}) = snapshot_get($source, $dest, $param->{maxsnap}, $param->{name}, $param->{dest_user});
 
 	    snapshot_add($source, $dest, $param->{name}, $date, $param->{source_user}, $param->{dest_user});
 
 	    send_image($source, $dest, $param);
 
-	    snapshot_destroy($source, $dest, $param->{method}, $source->{old_snap}, $param->{source_user}, $param->{dest_user}) if ($source->{destroy} && $source->{old_snap});
+	    snapshot_destroy($source, $dest, $param->{method}, $dest->{old_snap}, $param->{source_user}, $param->{dest_user}) if ($source->{destroy} && $dest->{old_snap});
 
 	};
 
@@ -694,14 +694,22 @@ sub sync {
 }
 
 sub snapshot_get{
-    my ($source, $dest, $max_snap, $name, $source_user) = @_;
+    my ($source, $dest, $max_snap, $name, $dest_user) = @_;
 
     my $cmd = [];
-    push @$cmd, 'ssh', "$source_user\@$source->{ip}", '--', if $source->{ip};
+    push @$cmd, 'ssh', "$dest_user\@$dest->{ip}", '--', if $dest->{ip};
     push @$cmd, 'zfs', 'list', '-r', '-t', 'snapshot', '-Ho', 'name', '-S', 'creation';
-    push @$cmd, $source->{all};
 
-    my $raw = run_cmd($cmd);
+    my $path = $dest->{all};
+    $path .= "/$source->{last_part}" if $source->{last_part};
+    push @$cmd, $path;
+
+    my $raw;
+    eval {$raw = run_cmd($cmd)};
+    if (my $erro =$@) { #this means the volume doesn't exist on dest yet
+       return undef;
+    }
+
     my $index = 0;
     my $line = "";
     my $last_snap = undef;
@@ -709,9 +717,10 @@ sub snapshot_get{
 
     while ($raw && $raw =~ s/^(.*?)(\n|$)//) {
 	$line = $1;
-	if ($line =~ m/(rep_\Q${name}\E_\d{4}-\d{2}-\d{2}_\d{2}:\d{2}:\d{2})$/) {
-
+	if ($line =~ m/@(.*)$/) {
 	    $last_snap = $1 if (!$last_snap);
+	}
+	if ($line =~ m/(rep_\Q${name}\E_\d{4}-\d{2}-\d{2}_\d{2}:\d{2}:\d{2})$/) {
 	    $old_snap = $1;
 	    $index++;
 	    if ($index == $max_snap) {
@@ -933,17 +942,16 @@ sub snapshot_destroy {
     }
 }
 
-# check if snapshot for incremental sync exist on dest side
+# check if snapshot for incremental sync exist on source side
 sub snapshot_exist {
-    my ($source , $dest, $method, $dest_user) = @_;
+    my ($source , $dest, $method, $source_user) = @_;
 
     my $cmd = [];
-    push @$cmd, 'ssh', "$dest_user\@$dest->{ip}", '--' if $dest->{ip};
+    push @$cmd, 'ssh', "$source_user\@$source->{ip}", '--' if $source->{ip};
     push @$cmd, 'zfs', 'list', '-rt', 'snapshot', '-Ho', 'name';
 
-    my $path = $dest->{all};
-    $path .= "/$source->{last_part}" if $source->{last_part};
-    $path .= "\@$source->{last_snap}";
+    my $path = $source->{all};
+    $path .= "\@$dest->{last_snap}";
 
     push @$cmd, $path;
 
@@ -965,8 +973,8 @@ sub send_image {
     push @$cmd, '-p', if $param->{properties};
     push @$cmd, '-v' if $param->{verbose};
 
-    if($source->{last_snap} && snapshot_exist($source , $dest, $param->{method}, $param->{dest_user})) {
-	push @$cmd, '-i', "$source->{all}\@$source->{last_snap}";
+    if($dest->{last_snap} && snapshot_exist($source , $dest, $param->{method}, $param->{source_user})) {
+	push @$cmd, '-i', "$source->{all}\@$dest->{last_snap}";
     }
     push @$cmd, '--', "$source->{all}\@$source->{new_snap}";
 
@@ -1018,7 +1026,7 @@ sub send_config{
 	}
 
 	if ($source->{destroy}){
-	    my $dest_target_old ="${config_dir}/$source->{vmid}.conf.$source->{vm_type}.$source->{old_snap}";
+	    my $dest_target_old ="${config_dir}/$source->{vmid}.conf.$source->{vm_type}.$dest->{old_snap}";
 	    if($dest->{ip}){
 		run_cmd(['ssh', "$dest_user\@$dest->{ip}", '--', 'rm', '-f', '--', $dest_target_old]);
 	    } else {
