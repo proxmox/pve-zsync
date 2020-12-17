@@ -81,6 +81,19 @@ sub check_bin {
     die "unable to find command '$bin'\n";
 }
 
+sub read_file {
+    my ($filename, $one_line_only) = @_;
+
+    my $fh = IO::File->new($filename, "r")
+	or die "Could not open file ${filename}: $!\n";
+
+    my $text = $one_line_only ? <$fh> : [ <$fh> ];
+
+    close($fh);
+
+    return $text;
+}
+
 sub cut_target_width {
     my ($path, $maxlen) = @_;
     $path =~ s@/+@/@g;
@@ -202,14 +215,9 @@ sub read_cron {
 	return undef;
     }
 
-    my $fh = IO::File->new("< $CRONJOBS");
-    die "Could not open file $CRONJOBS: $!\n" if !$fh;
+    my $text = read_file($CRONJOBS, 0);
 
-    my @text = <$fh>;
-
-    close($fh);
-
-    return encode_cron(@text);
+    return encode_cron(@{$text});
 }
 
 sub parse_argv {
@@ -329,28 +337,14 @@ sub read_state {
 	return undef;
     }
 
-    my $fh = IO::File->new("< $STATE");
-    die "Could not open file $STATE: $!\n" if !$fh;
-
-    my $text = <$fh>;
-    my $states = decode_json($text);
-
-    close($fh);
-
-    return $states;
+    my $text = read_file($STATE, 1);
+    return decode_json($text);
 }
 
 sub update_state {
     my ($job) = @_;
-    my $text;
-    my $in_fh;
 
-    eval {
-
-	$in_fh = IO::File->new("< $STATE");
-	die "Could not open file $STATE: $!\n" if !$in_fh;
-	$text = <$in_fh>;
-    };
+    my $text = eval { read_file($STATE, 1); };
 
     my $out_fh = IO::File->new("> $STATE.new");
     die "Could not open file ${STATE}.new: $!\n" if !$out_fh;
@@ -382,9 +376,6 @@ sub update_state {
 
     close($out_fh);
     rename "$STATE.new", $STATE;
-    eval {
-	close($in_fh);
-    };
 
     return $states;
 }
@@ -399,12 +390,9 @@ sub update_cron {
     my $header = "SHELL=/bin/sh\n";
     $header .= "PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin\n\n";
 
-    my $fh = IO::File->new("< $CRONJOBS");
-    die "Could not open file $CRONJOBS: $!\n" if !$fh;
+    my $current = read_file($CRONJOBS, 0);
 
-    my @test = <$fh>;
-
-    while (my $line = shift(@test)) {
+    foreach my $line (@{$current}) {
 	chomp($line);
 	if ($line =~ m/source $job->{source} .*name $job->{name} /) {
 	    $updated = 1;
@@ -433,7 +421,6 @@ sub update_cron {
     close ($new_fh);
 
     die "can't move $CRONJOBS.new: $!\n" if !rename "${CRONJOBS}.new", $CRONJOBS;
-    close ($fh);
 }
 
 sub format_job {
