@@ -757,42 +757,6 @@ sub snapshot_add {
     }
 }
 
-sub write_cron {
-    my ($cfg) = @_;
-
-    my $text = "SHELL=/bin/sh\n";
-    $text .= "PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin\n";
-
-    my $fh = IO::File->new("> $CRONJOBS");
-    die "Could not open file: $!\n" if !$fh;
-
-    foreach my $source (sort keys%{$cfg}) {
-	foreach my $sync_name (sort keys%{$cfg->{$source}}) {
-	    next if $cfg->{$source}->{$sync_name}->{status} ne 'ok';
-	    $text .= "$PROG_PATH sync";
-	    $text .= " -source  ";
-	    if ($cfg->{$source}->{$sync_name}->{vmid}) {
-		$text .= "$cfg->{$source}->{$sync_name}->{source_ip}:" if $cfg->{$source}->{$sync_name}->{source_ip};
-		$text .= "$cfg->{$source}->{$sync_name}->{vmid} ";
-	    } else {
-		$text .= "$cfg->{$source}->{$sync_name}->{source_ip}:" if $cfg->{$source}->{$sync_name}->{source_ip};
-		$text .= "$cfg->{$source}->{$sync_name}->{source_pool}";
-		$text .= "$cfg->{$source}->{$sync_name}->{source_path}" if $cfg->{$source}->{$sync_name}->{source_path};
-	    }
-	    $text .= " -dest  ";
-	    $text .= "$cfg->{$source}->{$sync_name}->{dest_ip}:" if $cfg->{$source}->{$sync_name}->{dest_ip};
-	    $text .= "$cfg->{$source}->{$sync_name}->{dest_pool}";
-	    $text .= "$cfg->{$source}->{$sync_name}->{dest_path}" if $cfg->{$source}->{$sync_name}->{dest_path};
-	    $text .= " -name $sync_name ";
-	    $text .= " -limit $cfg->{$source}->{$sync_name}->{limit}" if $cfg->{$source}->{$sync_name}->{limit};
-	    $text .= " -maxsnap $cfg->{$source}->{$sync_name}->{maxsnap}" if $cfg->{$source}->{$sync_name}->{maxsnap};
-	    $text .= "\n";
-	}
-    }
-    die "Can't write to cron\n" if (!print($fh $text));
-    close($fh);
-}
-
 sub get_disks {
     my ($target, $user) = @_;
 
