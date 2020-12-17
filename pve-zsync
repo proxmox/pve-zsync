@@ -55,6 +55,8 @@ my $TARGETRE = qr!^(?:($HOSTRE):)?(\d+|(?:[\w\-_]+)(/.+)?)$!;
 
 my $DISK_KEY_RE = qr/^(?:(?:(?:virtio|ide|scsi|sata|efidisk|mp)\d+)|rootfs): /;
 
+my $INSTANCE_ID = get_instance_id($$);
+
 my $command = $ARGV[0];
 
 if (defined($command) && $command ne 'help' && $command ne 'printpod') {
@@ -274,6 +276,7 @@ sub add_state_to_job {
     $job->{state} = $state->{state};
     $job->{lsync} = $state->{lsync};
     $job->{vm_type} = $state->{vm_type};
+    $job->{instance_id} = $state->{instance_id};
 
     for (my $i = 0; $state->{"snap$i"}; $i++) {
 	$job->{"snap$i"} = $state->{"snap$i"};
@@ -359,6 +362,7 @@ sub update_state {
     if ($job->{state} ne "del") {
 	$state->{state} = $job->{state};
 	$state->{lsync} = $job->{lsync};
+	$state->{instance_id} = $job->{instance_id};
 	$state->{vm_type} = $job->{vm_type};
 
 	for (my $i = 0; $job->{"snap$i"} ; $i++) {
@@ -571,6 +575,33 @@ sub destroy_job {
     });
 }
 
+sub get_instance_id {
+    my ($pid) = @_;
+
+    my $stat = read_file("/proc/$pid/stat", 1)
+	or die "unable to read process stats\n";
+    my $boot_id = read_file("/proc/sys/kernel/random/boot_id", 1)
+	or die "unable to read boot ID\n";
+
+    my $stats = [ split(/\s+/, $stat) ];
+    my $starttime = $stats->[21];
+    chomp($boot_id);
+
+    return "${pid}:${starttime}:${boot_id}";
+}
+
+sub instance_exists {
+    my ($instance_id) = @_;
+
+    if (defined($instance_id) && $instance_id =~ m/^([1-9][0-9]*):/) {
+	my $pid = $1;
+	my $actual_id = eval { get_instance_id($pid); };
+	return defined($actual_id) && $actual_id eq $instance_id;
+    }
+
+    return 0;
+}
+
 sub sync {
     my ($param) = @_;
 
@@ -580,11 +611,16 @@ sub sync {
 	eval { $job = get_job($param) };
 
 	if ($job) {
-	    if (defined($job->{state}) && ($job->{state} eq "syncing" || $job->{state} eq "waiting")) {
+	    my $state = $job->{state} // 'ok';
+	    $state = 'ok' if !instance_exists($job->{instance_id});
+
+	    if ($state eq "syncing" || $state eq "waiting") {
 		die "Job --source $param->{source} --name $param->{name} is already scheduled to sync\n";
 	    }
 
 	    $job->{state} = "waiting";
+	    $job->{instance_id} = $INSTANCE_ID;
+
 	    update_state($job);
 	}
     });
@@ -658,6 +694,7 @@ sub sync {
 		eval { $job = get_job($param); };
 		if ($job) {
 		    $job->{state} = "error";
+		    delete $job->{instance_id};
 		    update_state($job);
 		}
 	    });
@@ -674,6 +711,7 @@ sub sync {
 		    $job->{state} = "ok";
 		}
 		$job->{lsync} = $date;
+		delete $job->{instance_id};
 		update_state($job);
 	    }
 	});
