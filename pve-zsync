@@ -725,8 +725,7 @@ sub snapshot_get{
     push @$cmd, 'ssh', "$dest_user\@$dest->{ip}", '--', if $dest->{ip};
     push @$cmd, 'zfs', 'list', '-r', '-t', 'snapshot', '-Ho', 'name', '-S', 'creation';
 
-    my $path = $dest->{all};
-    $path .= "/$source->{last_part}" if $source->{last_part};
+    my $path = target_dataset($source, $dest);
     push @$cmd, $path;
 
     my $raw;
@@ -900,6 +899,17 @@ sub parse_disks {
     return $disks;
 }
 
+# how the corresponding dataset is named on the target
+sub target_dataset {
+    my ($source, $dest) = @_;
+
+    my $target = "$dest->{all}";
+    $target .= "/$source->{last_part}" if $source->{last_part};
+    $target =~ s!/+!/!g;
+
+    return $target;
+}
+
 sub snapshot_destroy {
     my ($source, $dest, $method, $snap, $source_user, $dest_user) = @_;
 
@@ -919,8 +929,7 @@ sub snapshot_destroy {
     if ($dest) {
 	my @ssh = $dest->{ip} ? ('ssh', "$dest_user\@$dest->{ip}", '--') : ();
 
-	my $path = "$dest->{all}";
-	$path .= "/$source->{last_part}" if $source->{last_part};
+	my $path = target_dataset($source, $dest);
 
 	eval {
 	    run_cmd([@ssh, @zfscmd, "$path\@$snap"]);
@@ -971,9 +980,7 @@ sub send_image {
 	my $bwl = $param->{limit}*1024;
 	push @$cmd, \'|', 'cstream', '-t', $bwl;
     }
-    my $target = "$dest->{all}";
-    $target .= "/$source->{last_part}" if $source->{last_part};
-    $target =~ s!/+!/!g;
+    my $target = target_dataset($source, $dest);
 
     push @$cmd, \'|';
     push @$cmd, 'ssh', '-o', 'BatchMode=yes', "$param->{dest_user}\@$dest->{ip}", '--' if $dest->{ip};
