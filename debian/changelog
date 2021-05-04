@@ -1,3 +1,12 @@
+pve-zsync (2.1-1) unstable; urgency=medium
+
+  * fix #1669: add command-line option to enable prepending the source storage
+    ID for the target dataset.
+
+  * rework man-page and CLI help output and format.
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 04 May 2021 14:36:47 +0200
+
 pve-zsync (2.0-4) unstable; urgency=medium
 
   * pve-zsync: Flip Source and Dest in functions to so jobs can share Dest
