@@ -1114,9 +1114,9 @@ $PROGNAME create -dest <string> -source <string> [OPTIONS]
 
 		name of the sync job, if not set it is default
 
-        -skip      boolean
+        -skip
 
-		if this flag is set it will skip the first sync
+		If specified, skip the first sync.
 
         -source    string
 
@@ -1126,9 +1126,9 @@ $PROGNAME create -dest <string> -source <string> [OPTIONS]
 
 		name of the user on the source target, root by default
 
-	-properties	boolean
+	-properties
 
-		Include the dataset's properties in the stream.
+		If specified, include the dataset's properties in the stream.
 
 	-dest-config-path    string
 
@@ -1168,13 +1168,13 @@ $PROGNAME sync -dest <string> -source <string> [OPTIONS]\n
 
 		name of the user on the source target, root by default
 
-	-verbose   boolean
+	-verbose
 
-		print out the sync progress.
+		If specified, print out the sync progress.
 
-	-properties	boolean
+	-properties
 
-		Include the dataset's properties in the stream.
+		If specified, include the dataset's properties in the stream.
 
 	-dest-config-path    string
 
@@ -1199,7 +1199,7 @@ $PROGNAME help <cmd> [OPTIONS]
 
 		Command name
 
-	-verbose   boolean
+	-verbose
 
 		Verbose output format.
     },
