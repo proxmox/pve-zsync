@@ -1362,6 +1362,7 @@ sub check_target {
 sub print_pod {
 
     my $synopsis = join("\n", sort values %$cmd_help);
+    my $commands = join(", ", sort keys %$cmd_help);
 
     print <<EOF;
 =head1 NAME
@@ -1372,7 +1373,7 @@ pve-zsync - PVE ZFS Replication Manager
 
 pve-zsync <COMMAND> [ARGS] [OPTIONS]
 
-$synopsis
+Where <COMMAND> can be one of: $commands
 
 =head1 DESCRIPTION
 
@@ -1384,6 +1385,10 @@ To config cron see man crontab.
 =head2 PVE ZFS Storage sync Tool
 
 This Tool can get remote pool on other PVE or send Pool to others ZFS machines
+
+=head1 COMMANDS AND OPTIONS
+
+$synopsis
 
 =head1 EXAMPLES
 
