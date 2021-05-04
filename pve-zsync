@@ -327,7 +327,8 @@ sub param_to_job {
     my $job = {};
 
     my $source = parse_target($param->{source});
-    my $dest = parse_target($param->{dest}) if $param->{dest};
+    my $dest;
+    $dest = parse_target($param->{dest}) if $param->{dest};
 
     $job->{name} = !$param->{name} ? "default" : $param->{name};
     $job->{dest} = $param->{dest} if $param->{dest};
