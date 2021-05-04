@@ -877,6 +877,8 @@ sub parse_disks {
 
 	die "Get no path from pvesm path $stor:$disk\n" if !$path;
 
+	$disks->{$num}->{storage_id} = $stor;
+
 	if ($vm_type eq 'qemu' && $path =~ m/^\/dev\/zvol\/(\w+.*)(\/$disk)$/) {
 
 	    my @array = split('/', $1);
