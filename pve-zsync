@@ -171,6 +171,19 @@ sub check_dataset_exists {
     return 1;
 }
 
+sub create_file_system {
+    my ($file_system, $ip, $user) = @_;
+
+    my $cmd = [];
+
+    if ($ip) {
+	push @$cmd, 'ssh', "$user\@$ip", '--';
+    }
+    push @$cmd, 'zfs', 'create', $file_system;
+
+    run_cmd($cmd);
+}
+
 sub parse_target {
     my ($text) = @_;
 
