@@ -1130,116 +1130,94 @@ sub disable_job {
 
 my $cmd_help = {
     destroy => qq{
-$PROGNAME destroy -source <string> [OPTIONS]
+$PROGNAME destroy --source <string> [OPTIONS]
 
-        remove a sync Job from the scheduler
+    Remove a sync Job from the scheduler
 
-        -name      string
+	--name      string
+		The name of the sync job, if not set 'default' is used.
 
-		name of the sync job, if not set it is default
-
-        -source    string
-
-                the source can be an  <VMID> or [IP:]<ZFSPool>[/Path]
+	--source    string
+		The source can be an  <VMID> or [IP:]<ZFSPool>[/Path]
     },
     create => qq{
-$PROGNAME create -dest <string> -source <string> [OPTIONS]
+$PROGNAME create --dest <string> --source <string> [OPTIONS]
 
-        Create a sync Job
+    Create a new sync-job
 
-        -dest      string
+	--dest      string
+		The destination target is like [IP]:<Pool>[/Path]
 
-		the destination target is like [IP]:<Pool>[/Path]
+	--dest-user string
+		The name of the user on the destination target, root by default
 
-        -dest-user string
+	--limit     integer
+		Maximal sync speed in kBytes/s, default is unlimited
 
-		name of the user on the destination target, root by default
+	--maxsnap   integer
+		How much snapshots will be kept before get erased, default 1
 
-        -limit     integer
+	--name      string
+		The name of the sync job, if not set it is default
 
-		max sync speed in kBytes/s, default unlimited
-
-        -maxsnap   integer
-
-		how much snapshots will be kept before get erased, default 1
-
-        -name      string
-
-		name of the sync job, if not set it is default
-
-        -prepend-storage-id
-
+	--prepend-storage-id
 		If specified, prepend the storage ID to the destination's path(s).
 
-        -skip
-
+	--skip
 		If specified, skip the first sync.
 
-        -source    string
+	--source    string
+		The source can be an <VMID> or [IP:]<ZFSPool>[/Path]
 
-		the source can be an <VMID> or [IP:]<ZFSPool>[/Path]
+	--source-user    string
+		The (ssh) user-name on the source target, root by default
 
-        -source-user    string
-
-		name of the user on the source target, root by default
-
-	-properties
-
+	--properties
 		If specified, include the dataset's properties in the stream.
 
-	-dest-config-path    string
-
-		specify a custom config path on the destination target. default is /var/lib/pve-zsync
+	--dest-config-path    string
+		Specifies a custom config path on the destination target.
+		The default is /var/lib/pve-zsync
     },
     sync => qq{
-$PROGNAME sync -dest <string> -source <string> [OPTIONS]\n
+$PROGNAME sync --dest <string> --source <string> [OPTIONS]\n
 
-	will sync one time
+    Trigger one sync.
 
-        -dest      string
+	--dest      string
+		The destination target is like [IP:]<Pool>[/Path]
 
-		the destination target is like [IP:]<Pool>[/Path]
+	--dest-user string
+		The (ssh) user-name on the destination target, root by default
 
-        -dest-user string
+	--limit     integer
+		The maximal sync speed in kBytes/s, default is unlimited
 
-		name of the user on the destination target, root by default
+	--maxsnap   integer
+		Configure how many snapshots will be kept before get erased, default 1
 
-	-limit     integer
-
-		max sync speed in kBytes/s, default unlimited
-
-        -maxsnap   integer
-
-		how much snapshots will be kept before get erased, default 1
-
-        -name      string
-
-		name of the sync job, if not set it is default.
+	--name      string
+		The name of the sync job, if not set it is 'default'.
 		It is only necessary if scheduler allready contains this source.
 
-        -prepend-storage-id
-
+	--prepend-storage-id
 		If specified, prepend the storage ID to the destination's path(s).
 
-        -source    string
+	--source    string
+		The source can either be an <VMID> or [IP:]<ZFSPool>[/Path]
 
-		the source can be an <VMID> or [IP:]<ZFSPool>[/Path]
+	--source-user    string
+		The name of the user on the source target, root by default
 
-        -source-user    string
-
-		name of the user on the source target, root by default
-
-	-verbose
-
+	--verbose
 		If specified, print out the sync progress.
 
-	-properties
-
+	--properties
 		If specified, include the dataset's properties in the stream.
 
-	-dest-config-path    string
-
-		specify a custom config path on the destination target. default is /var/lib/pve-zsync
+	--dest-config-path    string
+		Specifies a custom config path on the destination target.
+		The default is /var/lib/pve-zsync
     },
     list => qq{
 $PROGNAME list
@@ -1254,43 +1232,37 @@ $PROGNAME status
     help => qq{
 $PROGNAME help <cmd> [OPTIONS]
 
-	Get help about specified command.
+    Get help about specified command.
 
-        <cmd>      string
+	<cmd>      string
+		Command name to get help about.
 
-		Command name
-
-	-verbose
-
+	--verbose
 		Verbose output format.
     },
     enable => qq{
-$PROGNAME enable -source <string> [OPTIONS]
+$PROGNAME enable --source <string> [OPTIONS]
 
-        enable a syncjob and reset error
+    Enable a sync-job and reset all job-errors, if any.
 
-        -name      string
-
+	--name      string
 		name of the sync job, if not set it is default
 
-        -source    string
-
-                the source can be an  <VMID> or [IP:]<ZFSPool>[/Path]
+        --source    string
+		the source can be an  <VMID> or [IP:]<ZFSPool>[/Path]
     },
     disable => qq{
-$PROGNAME disable -source <string> [OPTIONS]
+$PROGNAME disable --source <string> [OPTIONS]
 
-        pause a sync job
+    Disables (pauses) a sync-job
 
-        -name      string
+	--name      string
+		name of the sync-job, if not set it is default
 
-		name of the sync job, if not set it is default
-
-        -source    string
-
-                the source can be an  <VMID> or [IP:]<ZFSPool>[/Path] 
+	--source    string
+		the source can be an  <VMID> or [IP:]<ZFSPool>[/Path]
     },
-    printpod => 'internal command',
+    printpod => "$PROGNAME printpod\n\n\tinternal command",
 
 };
 
@@ -1373,13 +1345,13 @@ sub usage {
     print("ERROR:\tno command specified\n") if !$help;
     print("USAGE:\t$PROGNAME <COMMAND> [ARGS] [OPTIONS]\n");
     print("\t$PROGNAME help [<cmd>] [OPTIONS]\n\n");
-    print("\t$PROGNAME create -dest <string> -source <string> [OPTIONS]\n");
-    print("\t$PROGNAME destroy -source <string> [OPTIONS]\n");
-    print("\t$PROGNAME disable -source <string> [OPTIONS]\n");
-    print("\t$PROGNAME enable -source <string> [OPTIONS]\n");
+    print("\t$PROGNAME create --dest <string> --source <string> [OPTIONS]\n");
+    print("\t$PROGNAME destroy --source <string> [OPTIONS]\n");
+    print("\t$PROGNAME disable --source <string> [OPTIONS]\n");
+    print("\t$PROGNAME enable --source <string> [OPTIONS]\n");
     print("\t$PROGNAME list\n");
     print("\t$PROGNAME status\n");
-    print("\t$PROGNAME sync -dest <string> -source <string> [OPTIONS]\n");
+    print("\t$PROGNAME sync --dest <string> --source <string> [OPTIONS]\n");
 }
 
 sub check_target {
