@@ -152,15 +152,15 @@ sub get_status {
     return undef;
 }
 
-sub check_pool_exists {
-    my ($target, $user) = @_;
+sub check_dataset_exists {
+    my ($dataset, $ip, $user) = @_;
 
     my $cmd = [];
 
-    if ($target->{ip}) {
-	push @$cmd, 'ssh', "$user\@$target->{ip}", '--';
+    if ($ip) {
+	push @$cmd, 'ssh', "$user\@$ip", '--';
     }
-    push @$cmd, 'zfs', 'list', '-H', '--', $target->{all};
+    push @$cmd, 'zfs', 'list', '-H', '--', $dataset;
     eval {
 	run_cmd($cmd);
     };
@@ -517,10 +517,12 @@ sub init {
 	    run_cmd(['ssh-copy-id', '-i', '/root/.ssh/id_rsa.pub', "$param->{source_user}\@$ip"]);
 	}
 
-	die "Pool $dest->{all} does not exists\n" if !check_pool_exists($dest, $param->{dest_user});
+	die "Pool $dest->{all} does not exist\n"
+	    if !check_dataset_exists($dest->{all}, $dest->{ip}, $param->{dest_user});
 
 	if (!defined($source->{vmid})) {
-	    die "Pool $source->{all} does not exists\n" if !check_pool_exists($source, $param->{source_user});
+	    die "Pool $source->{all} does not exist\n"
+		if !check_dataset_exists($source->{all}, $source->{ip}, $param->{source_user});
 	}
 
 	my $vm_type = vm_exists($source, $param->{source_user});
