@@ -438,10 +438,10 @@ sub update_cron {
     my $new_fh = IO::File->new("> ${CRONJOBS}.new");
     die "Could not open file ${CRONJOBS}.new: $!\n" if !$new_fh;
 
-    die "can't write to $CRONJOBS.new\n" if !print($new_fh $text);
+    print $new_fh $text or die "can't write to $CRONJOBS.new: $!\n";
     close ($new_fh);
 
-    die "can't move $CRONJOBS.new: $!\n" if !rename "${CRONJOBS}.new", $CRONJOBS;
+    rename "${CRONJOBS}.new", $CRONJOBS or die "can't move $CRONJOBS.new: $!\n";
 }
 
 sub format_job {
