@@ -685,8 +685,9 @@ sub sync {
 
 	    send_image($source, $dest, $param);
 
-	    snapshot_destroy($source, $dest, $param->{method}, $dest->{old_snap}, $param->{source_user}, $param->{dest_user}) if ($source->{destroy} && $dest->{old_snap});
-
+	    for my $old_snap (@{$dest->{old_snap}}) {
+		snapshot_destroy($source, $dest, $param->{method}, $old_snap, $param->{source_user}, $param->{dest_user});
+	    }
 	};
 
 	eval{
@@ -763,7 +764,7 @@ sub snapshot_get{
     my $index = 0;
     my $line = "";
     my $last_snap = undef;
-    my $old_snap;
+    my $old_snap = [];
 
     while ($raw && $raw =~ s/^(.*?)(\n|$)//) {
 	$line = $1;
@@ -771,12 +772,15 @@ sub snapshot_get{
 	    $last_snap = $1 if (!$last_snap);
 	}
 	if ($line =~ m/(rep_\Q${name}\E_\d{4}-\d{2}-\d{2}_\d{2}:\d{2}:\d{2})$/) {
-	    $old_snap = $1;
+	    # interpreted as infinity
+	    last if $max_snap <= 0;
+
+	    my $snap = $1;
 	    $index++;
-	    if ($index == $max_snap) {
-		$source->{destroy} = 1;
-		last;
-	    };
+
+	    if ($index >= $max_snap) {
+		push @{$old_snap}, $snap;
+	    }
 	}
     }
 
@@ -1067,8 +1071,8 @@ sub send_config{
 	    run_cmd(['scp', '--', "$source_user\@[$source->{ip}]:$source_target", $dest_target_new]);
 	}
 
-	if ($source->{destroy}){
-	    my $dest_target_old ="${config_dir}/$source->{vmid}.conf.$source->{vm_type}.$dest->{old_snap}";
+	for my $old_snap (@{$dest->{old_snap}}) {
+	    my $dest_target_old ="${config_dir}/$source->{vmid}.conf.$source->{vm_type}.${old_snap}";
 	    if($dest->{ip}){
 		run_cmd(['ssh', "$dest_user\@$dest->{ip}", '--', 'rm', '-f', '--', $dest_target_old]);
 	    } else {
