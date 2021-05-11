@@ -1155,7 +1155,8 @@ $PROGNAME create --dest <string> --source <string> [OPTIONS]
 		Maximal sync speed in kBytes/s, default is unlimited
 
 	--maxsnap   integer
-		How much snapshots will be kept before get erased, default 1
+		The number of snapshots to keep until older ones are erased.
+		The default is 1, use 0 for unlimited.
 
 	--name      string
 		The name of the sync job, if not set it is default
@@ -1194,7 +1195,8 @@ $PROGNAME sync --dest <string> --source <string> [OPTIONS]\n
 		The maximal sync speed in kBytes/s, default is unlimited
 
 	--maxsnap   integer
-		Configure how many snapshots will be kept before get erased, default 1
+		The number of snapshots to keep until older ones are erased.
+		The default is 1, use 0 for unlimited.
 
 	--name      string
 		The name of the sync job, if not set it is 'default'.
