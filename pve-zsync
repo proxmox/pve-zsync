@@ -694,7 +694,8 @@ sub sync {
 	    send_image($source, $dest, $param);
 
 	    for my $old_snap (@{$dest->{old_snap}}) {
-		snapshot_destroy($source, $dest, $param->{method}, $old_snap, $param->{source_user}, $param->{dest_user});
+		snapshot_destroy($source->{all}, $old_snap, $source->{ip}, $param->{source_user});
+		snapshot_destroy($dest_dataset, $old_snap, $dest->{ip}, $param->{dest_user});
 	    }
 	};
 
@@ -812,7 +813,7 @@ sub snapshot_add {
     };
 
     if (my $err = $@) {
-	snapshot_destroy($source, $dest, 'ssh', $snap_name, $source_user, $dest_user);
+	snapshot_destroy($source->{all}, $snap_name, $source->{ip}, $source_user);
 	die "$err\n";
     }
 }
@@ -967,32 +968,20 @@ sub prepare_prepended_target {
 }
 
 sub snapshot_destroy {
-    my ($source, $dest, $method, $snap, $source_user, $dest_user) = @_;
+    my ($dataset, $snap, $ip, $user) = @_;
 
     my @zfscmd = ('zfs', 'destroy');
-    my $snapshot = "$source->{all}\@$snap";
+    my $snapshot = "$dataset\@$snap";
 
     eval {
-	if($source->{ip} && $method eq 'ssh'){
-	    run_cmd(['ssh', "$source_user\@$source->{ip}", '--', @zfscmd, $snapshot]);
+	if ($ip) {
+	    run_cmd(['ssh', "$user\@$ip", '--', @zfscmd, $snapshot]);
 	} else {
 	    run_cmd([@zfscmd, $snapshot]);
 	}
     };
     if (my $erro = $@) {
 	warn "WARN: $erro";
-    }
-    if ($dest) {
-	my @ssh = $dest->{ip} ? ('ssh', "$dest_user\@$dest->{ip}", '--') : ();
-
-	my $path = target_dataset($source, $dest);
-
-	eval {
-	    run_cmd([@ssh, @zfscmd, "$path\@$snap"]);
-	};
-	if (my $erro = $@) {
-	    warn "WARN: $erro";
-	}
     }
 }
 
@@ -1048,7 +1037,7 @@ sub send_image {
     };
 
     if (my $erro = $@) {
-	snapshot_destroy($source, undef, $param->{method}, $source->{new_snap}, $param->{source_user}, $param->{dest_user});
+	snapshot_destroy($source->{all}, $source->{new_snap}, $source->{ip}, $param->{source_user});
 	die $erro;
     };
 }
