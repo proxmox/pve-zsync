@@ -677,7 +677,15 @@ sub sync {
 	my $sync_path = sub {
 	    my ($source, $dest, $job, $param, $date) = @_;
 
-	    ($dest->{old_snap}, $dest->{last_snap}) = snapshot_get($source, $dest, $param->{maxsnap}, $param->{name}, $param->{dest_user});
+	    my $dest_dataset = target_dataset($source, $dest);
+
+	    ($dest->{old_snap}, $dest->{last_snap}) = snapshot_get(
+		$dest_dataset,
+		$param->{maxsnap},
+		$param->{name},
+		$dest->{ip},
+		$param->{dest_user},
+	    );
 
 	    prepare_prepended_target($source, $dest, $param->{dest_user}) if defined($dest->{prepend});
 
@@ -746,14 +754,12 @@ sub sync {
 }
 
 sub snapshot_get{
-    my ($source, $dest, $max_snap, $name, $dest_user) = @_;
+    my ($dataset, $max_snap, $name, $ip, $user) = @_;
 
     my $cmd = [];
-    push @$cmd, 'ssh', "$dest_user\@$dest->{ip}", '--', if $dest->{ip};
+    push @$cmd, 'ssh', "$user\@$ip", '--', if $ip;
     push @$cmd, 'zfs', 'list', '-r', '-t', 'snapshot', '-Ho', 'name', '-S', 'creation';
-
-    my $path = target_dataset($source, $dest);
-    push @$cmd, $path;
+    push @$cmd, $dataset;
 
     my $raw;
     eval {$raw = run_cmd($cmd)};
