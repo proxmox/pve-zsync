@@ -244,6 +244,7 @@ sub parse_argv {
 	verbose => undef,
 	limit => undef,
 	maxsnap => undef,
+	dest_maxsnap => undef,
 	name => undef,
 	skip => undef,
 	method => undef,
@@ -261,6 +262,7 @@ sub parse_argv {
 	'verbose' => \$param->{verbose},
 	'limit=i' => \$param->{limit},
 	'maxsnap=i' => \$param->{maxsnap},
+	'dest-maxsnap=i' => \$param->{dest_maxsnap},
 	'name=s' => \$param->{name},
 	'skip' => \$param->{skip},
 	'method=s' => \$param->{method},
@@ -336,6 +338,7 @@ sub param_to_job {
     $job->{method} = "ssh" if !$job->{method};
     $job->{limit} = $param->{limit};
     $job->{maxsnap} = $param->{maxsnap};
+    $job->{dest_maxsnap} = $param->{dest_maxsnap};
     $job->{source} = $param->{source};
     $job->{source_user} = $param->{source_user};
     $job->{dest_user} = $param->{dest_user};
@@ -460,6 +463,7 @@ sub format_job {
     $text .= " root";
     $text .= " $PROGNAME sync --source $job->{source} --dest $job->{dest}";
     $text .= " --name $job->{name} --maxsnap $job->{maxsnap}";
+    $text .= " --dest-maxsnap $job->{dest_maxsnap}" if defined($job->{dest_maxsnap});
     $text .= " --limit $job->{limit}" if $job->{limit};
     $text .= " --method $job->{method}";
     $text .= " --verbose" if $job->{verbose};
@@ -681,10 +685,18 @@ sub sync {
 
 	    ($dest->{old_snap}, $dest->{last_snap}) = snapshot_get(
 		$dest_dataset,
-		$param->{maxsnap},
+		$param->{dest_maxsnap} // $param->{maxsnap},
 		$param->{name},
 		$dest->{ip},
 		$param->{dest_user},
+	    );
+
+	    ($source->{old_snap}) = snapshot_get(
+		$source->{all},
+		$param->{maxsnap},
+		$param->{name},
+		$source->{ip},
+		$param->{source_user},
 	    );
 
 	    prepare_prepended_target($source, $dest, $param->{dest_user}) if defined($dest->{prepend});
@@ -693,8 +705,11 @@ sub sync {
 
 	    send_image($source, $dest, $param);
 
-	    for my $old_snap (@{$dest->{old_snap}}) {
+	    for my $old_snap (@{$source->{old_snap}}) {
 		snapshot_destroy($source->{all}, $old_snap, $source->{ip}, $param->{source_user});
+	    }
+
+	    for my $old_snap (@{$dest->{old_snap}}) {
 		snapshot_destroy($dest_dataset, $old_snap, $dest->{ip}, $param->{dest_user});
 	    }
 	};
@@ -1157,6 +1172,9 @@ $PROGNAME create --dest <string> --source <string> [OPTIONS]
 		The number of snapshots to keep until older ones are erased.
 		The default is 1, use 0 for unlimited.
 
+	--dest-maxsnap   integer
+		Override maxsnap for the destination dataset.
+
 	--name      string
 		The name of the sync job, if not set it is default
 
@@ -1196,6 +1214,9 @@ $PROGNAME sync --dest <string> --source <string> [OPTIONS]\n
 	--maxsnap   integer
 		The number of snapshots to keep until older ones are erased.
 		The default is 1, use 0 for unlimited.
+
+	--dest-maxsnap   integer
+		Override maxsnap for the destination dataset.
 
 	--name      string
 		The name of the sync job, if not set it is 'default'.
