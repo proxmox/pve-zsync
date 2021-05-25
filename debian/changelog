@@ -1,3 +1,14 @@
+pve-zsync (2.2) stable; urgency=medium
+
+  * handle `maxsnap` = 0 on job creation
+
+  * remove all old snapshots belonging to a job when `maxsnap` gets reduced
+
+  * fix #3351: allow keeping a different number of snapshots on source and
+    destination through the new `new dest-maxsnap` job parameter
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 25 May 2021 13:56:29 +0200
+
 pve-zsync (2.1-1) unstable; urgency=medium
 
   * fix #1669: add command-line option to enable prepending the source storage
