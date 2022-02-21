@@ -232,7 +232,7 @@ sub read_cron {
 
     my $text = read_file($CRONJOBS, 0);
 
-    return encode_cron(@{$text});
+    return parse_cron(@{$text});
 }
 
 sub parse_argv {
@@ -302,7 +302,7 @@ sub add_state_to_job {
     return $job;
 }
 
-sub encode_cron {
+sub parse_cron {
     my (@text) = @_;
 
     my $cfg = {};
