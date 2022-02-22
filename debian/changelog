@@ -1,3 +1,10 @@
+pve-zsync (2.2.2) stable; urgency=medium
+
+  * parse cron: make splitting command-line less strict to better cope with
+    manual edits.
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 22 Feb 2022 22:22:22 +0100
+
 pve-zsync (2.2.1) stable; urgency=medium
 
   * add 'tpmstate' to tracked disk keys
