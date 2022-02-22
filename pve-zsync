@@ -9,6 +9,7 @@ use File::Path qw(make_path);
 use JSON;
 use IO::File;
 use String::ShellQuote 'shell_quote';
+use Text::ParseWords;
 
 my $PROGNAME = "pve-zsync";
 my $CONFIG_PATH = "/var/lib/${PROGNAME}";
@@ -308,8 +309,7 @@ sub parse_cron {
     my $cfg = {};
 
     while (my $line = shift(@text)) {
-
-	my @arg = split('\s', $line);
+	my @arg = Text::ParseWords::shellwords($line);
 	my $param = parse_argv(@arg);
 
 	if ($param->{source} && $param->{dest}) {
