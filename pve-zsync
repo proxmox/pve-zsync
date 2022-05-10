@@ -252,6 +252,7 @@ sub parse_argv {
 	source_user => undef,
 	dest_user => undef,
 	prepend_storage_id => undef,
+	compressed => undef,
 	properties => undef,
 	dest_config_path => undef,
     };
@@ -270,6 +271,7 @@ sub parse_argv {
 	'source-user=s' => \$param->{source_user},
 	'dest-user=s' => \$param->{dest_user},
 	'prepend-storage-id' => \$param->{prepend_storage_id},
+	'compressed' => \$param->{compressed},
 	'properties' => \$param->{properties},
 	'dest-config-path=s' => \$param->{dest_config_path},
     );
@@ -343,6 +345,7 @@ sub param_to_job {
     $job->{source_user} = $param->{source_user};
     $job->{dest_user} = $param->{dest_user};
     $job->{prepend_storage_id} = !!$param->{prepend_storage_id};
+    $job->{compressed} = !!$param->{compressed};
     $job->{properties} = !!$param->{properties};
     $job->{dest_config_path} = $param->{dest_config_path} if $param->{dest_config_path};
 
@@ -470,6 +473,7 @@ sub format_job {
     $text .= " --source-user $job->{source_user}";
     $text .= " --dest-user $job->{dest_user}";
     $text .= " --prepend-storage-id" if $job->{prepend_storage_id};
+    $text .= " --compressed" if $job->{compressed};
     $text .= " --properties" if $job->{properties};
     $text .= " --dest-config-path $job->{dest_config_path}" if $job->{dest_config_path};
     $text .= "\n";
@@ -1028,6 +1032,8 @@ sub send_image {
 
     push @$cmd, 'ssh', '-o', 'BatchMode=yes', "$param->{source_user}\@$source->{ip}", '--' if $source->{ip};
     push @$cmd, 'zfs', 'send';
+    push @$cmd, '-L', if $param->{compressed}; # no effect if dataset never had large recordsize
+    push @$cmd, '-c', if $param->{compressed};
     push @$cmd, '-p', if $param->{properties};
     push @$cmd, '-v' if $param->{verbose};
 
@@ -1190,6 +1196,11 @@ $PROGNAME create --dest <string> --source <string> [OPTIONS]
 	--source-user    string
 		The (ssh) user-name on the source target, root by default
 
+	--compressed
+		If specified, send data without decompressing first. If features lz4_compress,
+		zstd_compress or large_blocks are in use by the source, they need to be enabled on
+		the target as well.
+
 	--properties
 		If specified, include the dataset's properties in the stream.
 
@@ -1233,6 +1244,11 @@ $PROGNAME sync --dest <string> --source <string> [OPTIONS]\n
 
 	--verbose
 		If specified, print out the sync progress.
+
+	--compressed
+		If specified, send data without decompressing first. If features lz4_compress,
+		zstd_compress or large_blocks are in use by the source, they need to be enabled on
+		the target as well.
 
 	--properties
 		If specified, include the dataset's properties in the stream.
