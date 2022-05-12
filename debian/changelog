@@ -1,3 +1,10 @@
+pve-zsync (2.2.3) stable; urgency=medium
+
+  * fix  #1824: add 'compressed' option enabling ZFS underlying '-c' and '-L'
+    options for send
+
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 12 May 2022 17:15:46 +0200
+
 pve-zsync (2.2.2) stable; urgency=medium
 
   * parse cron: make splitting command-line less strict to better cope with
