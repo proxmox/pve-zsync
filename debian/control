@@ -2,7 +2,9 @@ Source: pve-zsync
 Section: perl
 Priority: optional
 Maintainer: Proxmox Support Team <support@proxmox.com>
-Build-Depends: debhelper (>= 12~)
+Build-Depends: debhelper (>= 12~),
+               libjson-perl,
+               libstring-shellquote-perl
 Standards-Version: 4.5.1
 Homepage: https://pve.proxmox.com
 
@@ -10,7 +12,9 @@ Package: pve-zsync
 Section: perl
 Priority: optional
 Architecture: all
-Depends: ${perl:Depends},
-         ${misc:Depends}
+Depends: libjson-perl,
+         libstring-shellquote-perl,
+         ${misc:Depends},
+         ${perl:Depends}
 Description: Proxmox VE ZFS syncing tool
  Tool for automated syncing of ZFS subvolumes and pools.
