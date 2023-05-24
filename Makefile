@@ -36,7 +36,7 @@ install: pve-zsync.8
 $(BUILDDIR):
 	rm -rf $@.tmp $@
 	rsync -a * $@.tmp
-	echo "git clone git://git.proxmox.com/git/dab.git\\ngit checkout $(GITVERSION)" > $@.tmp/debian/SOURCE
+	echo "git clone git://git.proxmox.com/git/pve-zsync.git\\ngit checkout $(GITVERSION)" > $@.tmp/debian/SOURCE
 	mv $@.tmp $@
 
 .PHONY: deb
