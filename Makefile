@@ -56,7 +56,7 @@ sbuild: $(DSC)
 
 .PHONY: clean
 clean:
-	rm -rf $(BUILDDIR) *.deb *.dsc $(PACKAGE)*.tar.gz *.buildinfo *.changes
+	rm -rf $(PACKAGE)-[0-9]*/ *.deb *.dsc $(PACKAGE)*.tar.?z *.build *.buildinfo *.changes
 	find . -name '*~' -exec rm {} ';'
 
 .PHONY: distclean
