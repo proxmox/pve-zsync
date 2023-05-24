@@ -1,3 +1,9 @@
+pve-zsync (2.3.0) bookworm; urgency=medium
+
+  * rebuild for Debian Bookworm based releases
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 24 May 2023 13:53:31 +0200
+
 pve-zsync (2.2.3) stable; urgency=medium
 
   * fix  #1824: add 'compressed' option enabling ZFS underlying '-c' and '-L'
