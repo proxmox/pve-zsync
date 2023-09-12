@@ -949,11 +949,12 @@ sub parse_disks {
 	    $num++;
 
 	} else {
-	    die "ERROR: in path\n";
+	    die "unexpected path '$path'\n";
 	}
     }
 
-    die "Vm include no disk on zfs.\n" if !$disks->{0};
+    die "Guest does not include any ZFS volumes (or all are excluded by the backup flag).\n"
+	if !$disks->{0};
     return $disks;
 }
 
